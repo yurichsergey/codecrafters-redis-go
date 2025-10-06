@@ -30,7 +30,22 @@ func handleConnection(conn net.Conn) {
 
 		if n > 0 {
 
-			write, err := conn.Write([]byte("+PONG\r\n"))
+			var response string
+			if len(strings) > 0 {
+				if strings[0] == "PING" {
+					response = "+PONG\r\n"
+				} else if strings[0] == "ECHO" && len(strings) > 1 {
+					response = "+" + strings[1:][0]
+					for _, s := range strings[2:] {
+						response += " " + s
+					}
+					response += "\r\n"
+				} else {
+					response = "+PONG\r\n"
+				}
+			}
+
+			write, err := conn.Write([]byte(response))
 			if err != nil {
 				fmt.Println("Error write: ", err.Error())
 				return
