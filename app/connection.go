@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-func handleConnection(conn net.Conn) {
+func handleConnection(processor *Processor, conn net.Conn) {
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {
@@ -29,7 +29,7 @@ func handleConnection(conn net.Conn) {
 		fmt.Printf("We got: %s\n", inputStrings)
 
 		if n > 0 {
-			response := defineResponse(inputStrings)
+			response := processor.DefineResponse(inputStrings)
 
 			write, err := conn.Write([]byte(response))
 			if err != nil {

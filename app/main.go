@@ -19,6 +19,7 @@ func main() {
 		fmt.Println("Failed to bind to port 6379")
 		os.Exit(1)
 	}
+	processor := NewProcessor()
 
 	for {
 		conn, err := l.Accept()
@@ -27,6 +28,6 @@ func main() {
 			os.Exit(1)
 		}
 
-		go handleConnection(conn)
+		go handleConnection(processor, conn)
 	}
 }

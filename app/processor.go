@@ -3,7 +3,11 @@ package main
 type Processor struct {
 }
 
-func defineResponse(strings []string) string {
+func NewProcessor() *Processor {
+	return &Processor{}
+}
+
+func (p *Processor) DefineResponse(strings []string) string {
 	var response string
 	if len(strings) > 0 {
 		if strings[0] == "PING" {

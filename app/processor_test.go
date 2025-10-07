@@ -62,9 +62,10 @@ func TestDefineResponse(t *testing.T) {
 		},
 	}
 
+	processor := NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := defineResponse(tt.input)
+			result := processor.DefineResponse(tt.input)
 			if result != tt.expected {
 				t.Errorf("defineResponse(%v) = %q, want %q", tt.input, result, tt.expected)
 			}
@@ -73,21 +74,23 @@ func TestDefineResponse(t *testing.T) {
 }
 
 func TestDefineResponseEdgeCases(t *testing.T) {
+	processor := NewProcessor()
+
 	// Test with nil slice
-	result := defineResponse(nil)
+	result := processor.DefineResponse(nil)
 	if result != "" {
 		t.Errorf("defineResponse(nil) = %q, want empty string", result)
 	}
 
 	// Test ECHO with an empty string argument
-	result = defineResponse([]string{"ECHO", ""})
+	result = processor.DefineResponse([]string{"ECHO", ""})
 	expected := "+\r\n"
 	if result != expected {
 		t.Errorf("defineResponse([\"ECHO\", \"\"]) = %q, want %q", result, expected)
 	}
 
 	// Test ECHO with spaces in arguments
-	result = defineResponse([]string{"ECHO", "hello world", "test"})
+	result = processor.DefineResponse([]string{"ECHO", "hello world", "test"})
 	expected = "+hello world test\r\n"
 	if result != expected {
 		t.Errorf("defineResponse([\"ECHO\", \"hello world\", \"test\"]) = %q, want %q", result, expected)
@@ -105,10 +108,11 @@ func BenchmarkDefineResponse(b *testing.B) {
 		{"Unknown", []string{"GET", "key"}},
 	}
 
+	processor := NewProcessor()
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				defineResponse(tc.input)
+				processor.DefineResponse(tc.input)
 			}
 		})
 	}
