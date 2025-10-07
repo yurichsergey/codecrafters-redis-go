@@ -42,7 +42,7 @@ func TestDefineResponse(t *testing.T) {
 		},
 		{
 			name:     "Unknown command with arguments",
-			input:    []string{"GET", "key"},
+			input:    []string{"UNKNOWN", "key"},
 			expected: "+PONG\r\n",
 		},
 		{
@@ -97,6 +97,213 @@ func TestDefineResponseEdgeCases(t *testing.T) {
 	}
 }
 
+func TestSetCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{
+			name:     "SET with key and value",
+			input:    []string{"SET", "foo", "bar"},
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "SET with single character key and value",
+			input:    []string{"SET", "a", "b"},
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "SET with numeric value",
+			input:    []string{"SET", "count", "123"},
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "SET with empty value",
+			input:    []string{"SET", "empty", ""},
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "SET with spaces in value",
+			input:    []string{"SET", "message", "hello world"},
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "SET with special characters in value",
+			input:    []string{"SET", "special", "!@#$%^&*()"},
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "SET without key",
+			input:    []string{"SET"},
+			expected: "-ERR wrong number of arguments for 'set' command\r\n",
+		},
+		{
+			name:     "SET with key but no value",
+			input:    []string{"SET", "key"},
+			expected: "-ERR wrong number of arguments for 'set' command\r\n",
+		},
+		{
+			name:     "SET overwrites existing key",
+			input:    []string{"SET", "mykey", "newvalue"},
+			expected: "+OK\r\n",
+		},
+	}
+
+	processor := NewProcessor()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := processor.ProcessCommand(tt.input)
+			if result != tt.expected {
+				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		setup    [][]string // Commands to run before the test
+		input    []string
+		expected string
+	}{
+		{
+			name:     "GET non-existent key",
+			setup:    nil,
+			input:    []string{"GET", "nonexistent"},
+			expected: "$-1\r\n",
+		},
+		{
+			name:     "GET existing key",
+			setup:    [][]string{{"SET", "foo", "bar"}},
+			input:    []string{"GET", "foo"},
+			expected: "$3\r\nbar\r\n",
+		},
+		{
+			name:     "GET single character value",
+			setup:    [][]string{{"SET", "a", "x"}},
+			input:    []string{"GET", "a"},
+			expected: "$1\r\nx\r\n",
+		},
+		{
+			name:     "GET numeric value",
+			setup:    [][]string{{"SET", "count", "12345"}},
+			input:    []string{"GET", "count"},
+			expected: "$5\r\n12345\r\n",
+		},
+		{
+			name:     "GET empty value",
+			setup:    [][]string{{"SET", "empty", ""}},
+			input:    []string{"GET", "empty"},
+			expected: "$0\r\n\r\n",
+		},
+		{
+			name:     "GET value with spaces",
+			setup:    [][]string{{"SET", "message", "hello world"}},
+			input:    []string{"GET", "message"},
+			expected: "$11\r\nhello world\r\n",
+		},
+		{
+			name:     "GET value with special characters",
+			setup:    [][]string{{"SET", "special", "!@#$%"}},
+			input:    []string{"GET", "special"},
+			expected: "$5\r\n!@#$%\r\n",
+		},
+		{
+			name:     "GET without key argument",
+			setup:    nil,
+			input:    []string{"GET"},
+			expected: "-ERR wrong number of arguments for 'get' command\r\n",
+		},
+		{
+			name:     "GET after overwriting value",
+			setup:    [][]string{{"SET", "mykey", "oldvalue"}, {"SET", "mykey", "newvalue"}},
+			input:    []string{"GET", "mykey"},
+			expected: "$8\r\nnewvalue\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			processor := NewProcessor()
+
+			// Run setup commands
+			for _, setupCmd := range tt.setup {
+				processor.ProcessCommand(setupCmd)
+			}
+
+			// Run the actual test
+			result := processor.ProcessCommand(tt.input)
+			if result != tt.expected {
+				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSetGetIntegration(t *testing.T) {
+	processor := NewProcessor()
+
+	t.Run("SET and GET same key", func(t *testing.T) {
+		// Set a value
+		setResult := processor.ProcessCommand([]string{"SET", "testkey", "testvalue"})
+		if setResult != "+OK\r\n" {
+			t.Errorf("SET failed: got %q, want %q", setResult, "+OK\r\n")
+		}
+
+		// Get the value back
+		getResult := processor.ProcessCommand([]string{"GET", "testkey"})
+		expected := "$9\r\ntestvalue\r\n"
+		if getResult != expected {
+			t.Errorf("GET failed: got %q, want %q", getResult, expected)
+		}
+	})
+
+	t.Run("SET multiple keys and GET them", func(t *testing.T) {
+		keys := map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+			"key3": "value3",
+		}
+
+		// Set all keys
+		for key, value := range keys {
+			result := processor.ProcessCommand([]string{"SET", key, value})
+			if result != "+OK\r\n" {
+				t.Errorf("SET %s failed: got %q", key, result)
+			}
+		}
+
+		// Get all keys back
+		for key, value := range keys {
+			result := processor.ProcessCommand([]string{"GET", key})
+			expected := "$" + string(rune(len(value)+48)) + "\r\n" + value + "\r\n"
+			if result != expected {
+				t.Errorf("GET %s failed: got %q, want %q", key, result, expected)
+			}
+		}
+	})
+
+	t.Run("Overwrite key and verify new value", func(t *testing.T) {
+		// Set initial value
+		processor.ProcessCommand([]string{"SET", "updatekey", "oldvalue"})
+
+		// Overwrite with new value
+		setResult := processor.ProcessCommand([]string{"SET", "updatekey", "newvalue"})
+		if setResult != "+OK\r\n" {
+			t.Errorf("SET failed: got %q", setResult)
+		}
+
+		// Verify new value
+		getResult := processor.ProcessCommand([]string{"GET", "updatekey"})
+		expected := "$8\r\nnewvalue\r\n"
+		if getResult != expected {
+			t.Errorf("GET failed: got %q, want %q", getResult, expected)
+		}
+	})
+}
+
 func BenchmarkDefineResponse(b *testing.B) {
 	testCases := []struct {
 		name  string
@@ -105,10 +312,14 @@ func BenchmarkDefineResponse(b *testing.B) {
 		{"PING", []string{"PING"}},
 		{"ECHO single", []string{"ECHO", "hello"}},
 		{"ECHO multiple", []string{"ECHO", "hello", "world", "test"}},
-		{"Unknown", []string{"GET", "key"}},
+		{"SET", []string{"SET", "key", "value"}},
+		{"GET existing", []string{"GET", "key"}},
 	}
 
 	processor := NewProcessor()
+	// Setup for GET benchmark
+	processor.ProcessCommand([]string{"SET", "key", "value"})
+
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
