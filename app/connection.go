@@ -20,30 +20,16 @@ func handleConnection(conn net.Conn) {
 			fmt.Println("Error reading from connection:", err)
 			return
 		}
-		strings, err := parseString(string(buf[:n]))
+		inputStrings, err := parseString(string(buf[:n]))
 		if err != nil {
 			fmt.Println("Error parsing string: ", err)
 			return
 		}
 
-		fmt.Printf("We got: %s\n", strings)
+		fmt.Printf("We got: %s\n", inputStrings)
 
 		if n > 0 {
-
-			var response string
-			if len(strings) > 0 {
-				if strings[0] == "PING" {
-					response = "+PONG\r\n"
-				} else if strings[0] == "ECHO" && len(strings) > 1 {
-					response = "+" + strings[1:][0]
-					for _, s := range strings[2:] {
-						response += " " + s
-					}
-					response += "\r\n"
-				} else {
-					response = "+PONG\r\n"
-				}
-			}
+			response := defineResponse(inputStrings)
 
 			write, err := conn.Write([]byte(response))
 			if err != nil {
