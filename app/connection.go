@@ -29,7 +29,7 @@ func handleConnection(processor *Processor, conn net.Conn) {
 		fmt.Printf("We got: %s\n", inputStrings)
 
 		if n > 0 {
-			response := processor.DefineResponse(inputStrings)
+			response := processor.ProcessCommand(inputStrings)
 
 			write, err := conn.Write([]byte(response))
 			if err != nil {
