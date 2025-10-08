@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,19 +23,22 @@ func NewProcessor() *Processor {
 	}
 }
 
-func (p *Processor) ProcessCommand(strings []string) string {
+func (p *Processor) ProcessCommand(row []string) string {
 	var response string
 	response = ""
-	if len(strings) == 0 {
-		response = ""
-	} else if strings[0] == "PING" {
+	if len(row) == 0 {
+		response = "$-1\r\n"
+		return response
+	}
+	command := strings.ToUpper(row[0])
+	if command == "PING" {
 		response = "+PONG\r\n"
-	} else if strings[0] == "ECHO" {
-		response = p.commandEcho(strings)
-	} else if strings[0] == "SET" {
-		response = p.commandSet(strings)
-	} else if strings[0] == "GET" {
-		response = p.commandGet(strings)
+	} else if command == "ECHO" {
+		response = p.commandEcho(row)
+	} else if command == "SET" {
+		response = p.commandSet(row)
+	} else if command == "GET" {
+		response = p.commandGet(row)
 	} else {
 		response = "+PONG\r\n"
 	}
@@ -54,21 +58,21 @@ func (p *Processor) commandEcho(strings []string) string {
 	return response
 }
 
-func (p *Processor) commandSet(strings []string) string {
+func (p *Processor) commandSet(row []string) string {
 	// SET command requires at least a key and a value
-	if len(strings) < 3 {
+	if len(row) < 3 {
 		return "-ERR wrong number of arguments for 'set' command\r\n"
 	}
 
-	key := strings[1]
-	value := strings[2]
+	key := row[1]
+	value := row[2]
 
 	var expiryType string
 	var expiryValue int64
 	expiryValue = 0
-	if len(strings) >= 5 {
-		expiryType = strings[3]
-		value, err := strconv.ParseInt(strings[4], 10, 64)
+	if len(row) >= 5 {
+		expiryType = strings.ToUpper(row[3])
+		value, err := strconv.ParseInt(row[4], 10, 64)
 		if err != nil {
 			return "-ERR value is not an integer or out of range\r\n"
 		}
@@ -98,13 +102,13 @@ func (p *Processor) commandSet(strings []string) string {
 	return "+OK\r\n"
 }
 
-func (p *Processor) commandGet(strings []string) string {
+func (p *Processor) commandGet(row []string) string {
 	// GET command requires a key argument
-	if len(strings) < 2 {
+	if len(row) < 2 {
 		return "-ERR wrong number of arguments for 'get' command\r\n"
 	}
 
-	key := strings[1]
+	key := row[1]
 
 	// Check if the key exists in storage
 	item, exists := p.storage[key]

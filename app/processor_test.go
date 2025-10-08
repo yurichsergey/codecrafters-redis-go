@@ -49,7 +49,7 @@ func TestDefineResponse(t *testing.T) {
 		{
 			name:     "Empty input",
 			input:    []string{},
-			expected: "",
+			expected: "$-1\r\n",
 		},
 		{
 			name:     "Case sensitivity test - ping lowercase",
@@ -59,7 +59,7 @@ func TestDefineResponse(t *testing.T) {
 		{
 			name:     "Case sensitivity test - echo lowercase",
 			input:    []string{"echo", "test"},
-			expected: "+PONG\r\n",
+			expected: "+test\r\n",
 		},
 	}
 
@@ -79,7 +79,7 @@ func TestDefineResponseEdgeCases(t *testing.T) {
 
 	// Test with nil slice
 	result := processor.ProcessCommand(nil)
-	if result != "" {
+	if result != "$-1\r\n" {
 		t.Errorf("defineResponse(nil) = %q, want empty string", result)
 	}
 
@@ -496,6 +496,135 @@ func TestGetCommandWithExpiry(t *testing.T) {
 		expected := "$8\r\nnewvalue\r\n"
 		if result != expected {
 			t.Errorf("GET overwritten key failed: got %q, want %q", result, expected)
+		}
+	})
+}
+
+func TestCaseInsensitiveCommands(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{
+			name:     "ping lowercase",
+			input:    []string{"ping"},
+			expected: "+PONG\r\n",
+		},
+		{
+			name:     "PING uppercase",
+			input:    []string{"PING"},
+			expected: "+PONG\r\n",
+		},
+		{
+			name:     "PiNg mixed case",
+			input:    []string{"PiNg"},
+			expected: "+PONG\r\n",
+		},
+		{
+			name:     "echo lowercase",
+			input:    []string{"echo", "test"},
+			expected: "+test\r\n",
+		},
+		{
+			name:     "ECHO uppercase",
+			input:    []string{"ECHO", "test"},
+			expected: "+test\r\n",
+		},
+		{
+			name:     "EcHo mixed case",
+			input:    []string{"EcHo", "hello"},
+			expected: "+hello\r\n",
+		},
+		{
+			name:     "set lowercase",
+			input:    []string{"set", "key", "value"},
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "SET uppercase",
+			input:    []string{"SET", "key2", "value2"},
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "SeT mixed case",
+			input:    []string{"SeT", "key3", "value3"},
+			expected: "+OK\r\n",
+		},
+		{
+			name:     "get lowercase",
+			input:    []string{"get", "nonexistent"},
+			expected: "$-1\r\n",
+		},
+		{
+			name:     "GET uppercase",
+			input:    []string{"GET", "nonexistent"},
+			expected: "$-1\r\n",
+		},
+		{
+			name:     "GeT mixed case",
+			input:    []string{"GeT", "nonexistent"},
+			expected: "$-1\r\n",
+		},
+	}
+
+	processor := NewProcessor()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := processor.ProcessCommand(tt.input)
+			if result != tt.expected {
+				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCaseInsensitiveSetGetIntegration(t *testing.T) {
+	processor := NewProcessor()
+
+	t.Run("SET lowercase, GET uppercase", func(t *testing.T) {
+		processor.ProcessCommand([]string{"set", "testkey", "testvalue"})
+		result := processor.ProcessCommand([]string{"GET", "testkey"})
+		expected := "$9\r\ntestvalue\r\n"
+		if result != expected {
+			t.Errorf("GET failed: got %q, want %q", result, expected)
+		}
+	})
+
+	t.Run("SET uppercase, GET lowercase", func(t *testing.T) {
+		processor.ProcessCommand([]string{"SET", "testkey2", "testvalue2"})
+		result := processor.ProcessCommand([]string{"get", "testkey2"})
+		expected := "$10\r\ntestvalue2\r\n"
+		if result != expected {
+			t.Errorf("GET failed: got %q, want %q", result, expected)
+		}
+	})
+
+	t.Run("SET mixed case with EX lowercase", func(t *testing.T) {
+		result := processor.ProcessCommand([]string{"SeT", "exkey", "exvalue", "ex", "10"})
+		expected := "+OK\r\n"
+		if result != expected {
+			t.Errorf("SET with ex failed: got %q, want %q", result, expected)
+		}
+
+		getResult := processor.ProcessCommand([]string{"gEt", "exkey"})
+		expectedGet := "$7\r\nexvalue\r\n"
+		if getResult != expectedGet {
+			t.Errorf("GET failed: got %q, want %q", getResult, expectedGet)
+		}
+	})
+
+	t.Run("SET with px mixed case", func(t *testing.T) {
+		result := processor.ProcessCommand([]string{"set", "pxkey", "pxvalue", "Px", "5000"})
+		expected := "+OK\r\n"
+		if result != expected {
+			t.Errorf("SET with Px failed: got %q, want %q", result, expected)
+		}
+
+		getResult := processor.ProcessCommand([]string{"GET", "pxkey"})
+		expectedGet := "$7\r\npxvalue\r\n"
+		if getResult != expectedGet {
+			t.Errorf("GET failed: got %q, want %q", getResult, expectedGet)
 		}
 	})
 }
