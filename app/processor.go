@@ -1,14 +1,24 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"time"
+)
+
+type StorageItem struct {
+	value  string
+	expiry int64
+}
 
 type Processor struct {
-	storage map[string]string
+	storage map[string]*StorageItem
 }
 
 func NewProcessor() *Processor {
 	return &Processor{
-		storage: make(map[string]string),
+
+		storage: make(map[string]*StorageItem),
 	}
 }
 
@@ -53,8 +63,36 @@ func (p *Processor) commandSet(strings []string) string {
 	key := strings[1]
 	value := strings[2]
 
+	var expiryType string
+	var expiryValue int64
+	expiryValue = 0
+	if len(strings) >= 5 {
+		expiryType = strings[3]
+		value, err := strconv.ParseInt(strings[4], 10, 64)
+		if err != nil {
+			return "-ERR value is not an integer or out of range\r\n"
+		}
+		expiryValue = value
+
+		if expiryType != "EX" && expiryType != "PX" {
+			return "-ERR syntax error\r\n"
+		}
+
+		if expiryType == "EX" {
+			expiryValue *= 1000
+		}
+	}
+
 	// Store the key-value pair
-	p.storage[key] = value
+	var expiryMilliseconds int64
+	expiryMilliseconds = 0
+	if expiryValue != 0 {
+		expiryMilliseconds = time.Now().UnixMilli() + expiryValue
+	}
+	p.storage[key] = &StorageItem{
+		value:  value,
+		expiry: expiryMilliseconds,
+	}
 
 	// Return OK as a RESP simple string
 	return "+OK\r\n"
@@ -69,13 +107,18 @@ func (p *Processor) commandGet(strings []string) string {
 	key := strings[1]
 
 	// Check if the key exists in storage
-	value, exists := p.storage[key]
+	item, exists := p.storage[key]
 	if !exists {
 		// Return null bulk string if key doesn't exist
 		return "$-1\r\n"
 	}
 
+	if item.expiry != 0 && time.Now().UnixMilli() > item.expiry {
+		//delete(p.storage, key)
+		return "$-1\r\n"
+	}
+
 	// Return the value as a RESP bulk string
 	// Format: $<length>\r\n<data>\r\n
-	return fmt.Sprintf("$%d\r\n%s\r\n", len(value), value)
+	return fmt.Sprintf("$%d\r\n%s\r\n", len(item.value), item.value)
 }
