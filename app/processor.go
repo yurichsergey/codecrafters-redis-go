@@ -160,14 +160,15 @@ func (p *Processor) handleLRange(row []string) string {
 	startStr := row[2]
 	stopStr := row[3]
 
-	// Parse start and stop indexes
+	// Parse start index with negative index support
 	start, err := strconv.Atoi(startStr)
-	if err != nil || start < 0 {
+	if err != nil {
 		return "-ERR invalid start index\r\n"
 	}
 
+	// Parse stop index with negative index support
 	stop, err := strconv.Atoi(stopStr)
-	if err != nil || stop < 0 {
+	if err != nil {
 		return "-ERR invalid stop index\r\n"
 	}
 
@@ -178,13 +179,34 @@ func (p *Processor) handleLRange(row []string) string {
 		return "*0\r\n"
 	}
 
+	// Calculate the length of the list
+	listLength := len(list)
+
+	// Handle negative indexes for start
+	if start < 0 {
+		start = listLength + start
+		// If negative index is out of range, treat as 0
+		if start < 0 {
+			start = 0
+		}
+	}
+
+	// Handle negative indexes for stop
+	if stop < 0 {
+		stop = listLength + stop
+		// If negative index is out of range, treat as 0
+		if stop < 0 {
+			stop = 0
+		}
+	}
+
 	// Adjust stop index if it's greater than or equal to list length
-	if stop >= len(list) {
-		stop = len(list) - 1
+	if stop >= listLength {
+		stop = listLength - 1
 	}
 
 	// Check if start index is out of bounds
-	if start >= len(list) {
+	if start >= listLength {
 		return "*0\r\n"
 	}
 

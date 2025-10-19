@@ -111,16 +111,6 @@ func TestLRangeCommandErrors(t *testing.T) {
 			input:    []string{"LRANGE", "list", "0", "xyz"},
 			expected: "-ERR invalid stop index\r\n",
 		},
-		{
-			name:     "LRANGE with negative start index",
-			input:    []string{"LRANGE", "list", "-1", "1"},
-			expected: "-ERR invalid start index\r\n",
-		},
-		{
-			name:     "LRANGE with negative stop index",
-			input:    []string{"LRANGE", "list", "0", "-1"},
-			expected: "-ERR invalid stop index\r\n",
-		},
 	}
 
 	processor := NewProcessor()
@@ -191,6 +181,75 @@ func BenchmarkLRangeCommand(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				processor.ProcessCommand(tc.input)
+			}
+		})
+	}
+}
+
+func TestLRangeCommandNegativeIndexes(t *testing.T) {
+	tests := []struct {
+		name     string
+		setup    [][]string
+		input    []string
+		expected string
+	}{
+		{
+			name:     "LRANGE with last element using -1",
+			setup:    [][]string{{"RPUSH", "last_test", "a", "b", "c", "d", "e"}},
+			input:    []string{"LRANGE", "last_test", "-1", "-1"},
+			expected: "*1\r\n$1\r\ne\r\n",
+		},
+		{
+			name:     "LRANGE with last two elements using -2 -1",
+			setup:    [][]string{{"RPUSH", "last_two_test", "a", "b", "c", "d", "e"}},
+			input:    []string{"LRANGE", "last_two_test", "-2", "-1"},
+			expected: "*2\r\n$1\r\nd\r\n$1\r\ne\r\n",
+		},
+		{
+			name:     "LRANGE with start negative index and end positive index",
+			setup:    [][]string{{"RPUSH", "mixed_index", "a", "b", "c", "d", "e"}},
+			input:    []string{"LRANGE", "mixed_index", "-3", "4"},
+			expected: "*3\r\n$1\r\nc\r\n$1\r\nd\r\n$1\r\ne\r\n",
+		},
+		{
+			name:     "LRANGE with both negative indexes spanning list",
+			setup:    [][]string{{"RPUSH", "negative_span", "a", "b", "c", "d", "e"}},
+			input:    []string{"LRANGE", "negative_span", "-5", "-1"},
+			expected: "*5\r\n$1\r\na\r\n$1\r\nb\r\n$1\r\nc\r\n$1\r\nd\r\n$1\r\ne\r\n",
+		},
+		{
+			name:     "LRANGE with negative index out of range treated as 0",
+			setup:    [][]string{{"RPUSH", "out_of_range", "a", "b", "c"}},
+			input:    []string{"LRANGE", "out_of_range", "-6", "1"},
+			expected: "*2\r\n$1\r\na\r\n$1\r\nb\r\n",
+		},
+		{
+			name:     "LRANGE with negative start index greater than list length",
+			setup:    [][]string{{"RPUSH", "too_negative", "a", "b", "c"}},
+			input:    []string{"LRANGE", "too_negative", "-10", "-5"},
+			expected: "*1\r\n$1\r\na\r\n",
+		},
+		{
+			name:     "LRANGE with negative indexes in reverse order",
+			setup:    [][]string{{"RPUSH", "reverse_order", "a", "b", "c", "d", "e"}},
+			input:    []string{"LRANGE", "reverse_order", "-1", "-5"},
+			expected: "*0\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			processor := NewProcessor()
+
+			// Run setup commands
+			for _, setupCmd := range tt.setup {
+				processor.ProcessCommand(setupCmd)
+			}
+
+			// Run the actual LRANGE test
+			result := processor.ProcessCommand(tt.input)
+			if result != tt.expected {
+				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
 	}
