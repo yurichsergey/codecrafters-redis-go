@@ -6,6 +6,55 @@ import (
 	"testing"
 )
 
+func TestRPushCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{
+			name:     "RPUSH creating a new list with a single element",
+			input:    []string{"RPUSH", "list_key", "foo"},
+			expected: ":1\r\n",
+		},
+		{
+			name:     "RPUSH adding another element to the same list",
+			input:    []string{"RPUSH", "list_key", "bar"},
+			expected: ":2\r\n",
+		},
+		{
+			name:     "RPUSH with multiple elements in one call",
+			input:    []string{"RPUSH", "another_list", "a", "b", "c"},
+			expected: ":3\r\n",
+		},
+		{
+			name:     "RPUSH with empty string as element",
+			input:    []string{"RPUSH", "empty_list", ""},
+			expected: ":1\r\n",
+		},
+		{
+			name:     "RPUSH without enough arguments",
+			input:    []string{"RPUSH", "list_key"},
+			expected: "-ERR wrong number of arguments for 'rpush' command\r\n",
+		},
+		{
+			name:     "RPUSH case-insensitive command",
+			input:    []string{"rpush", "case_list", "element"},
+			expected: ":1\r\n",
+		},
+	}
+
+	processor := NewProcessor()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := processor.ProcessCommand(tt.input)
+			if result != tt.expected {
+				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestLRangeCommand(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -258,42 +307,59 @@ func TestLRangeCommandNegativeIndexes(t *testing.T) {
 
 func TestLPushCommand(t *testing.T) {
 	tests := []struct {
-		name     string
-		setup    [][]string // Commands to run before the test
-		input    []string
-		expected string
+		name         string
+		setup        [][]string // Commands to run before the test
+		input        []string
+		expected     string
+		expectedList []string
 	}{
 		{
-			name:     "LPUSH to a non-existent list",
-			input:    []string{"LPUSH", "new_list", "a"},
-			expected: ":1\r\n",
+			name:         "LPUSH to a non-existent list",
+			input:        []string{"LPUSH", "new_list", "a"},
+			expected:     ":1\r\n",
+			expectedList: []string{"a"},
 		},
 		{
-			name:     "LPUSH single element to an existing list",
-			setup:    [][]string{{"RPUSH", "test_list", "b", "c"}},
-			input:    []string{"LPUSH", "test_list", "a"},
-			expected: ":3\r\n",
+			name:         "LPUSH single element to an existing list",
+			setup:        [][]string{{"RPUSH", "test_list", "b", "c"}},
+			input:        []string{"LPUSH", "test_list", "a"},
+			expected:     ":3\r\n",
+			expectedList: []string{"a", "b", "c"},
 		},
 		{
-			name:     "LPUSH multiple elements",
-			setup:    [][]string{{"RPUSH", "multi_list", "c", "d"}},
-			input:    []string{"LPUSH", "multi_list", "b", "a"},
-			expected: ":4\r\n",
+			name:         "LPUSH multiple elements",
+			setup:        [][]string{{"RPUSH", "multi_list", "c", "d"}},
+			input:        []string{"LPUSH", "multi_list", "b", "a"},
+			expected:     ":4\r\n",
+			expectedList: []string{"a", "b", "c", "d"},
 		},
 		{
-			name:     "LPUSH with many elements",
-			input:    []string{"LPUSH", "many_list", "c", "b", "a"},
-			expected: ":3\r\n",
+			name:         "LPUSH with many elements",
+			input:        []string{"LPUSH", "many_list", "c", "b", "a"},
+			expected:     ":3\r\n",
+			expectedList: []string{"a", "b", "c"},
 		},
 		{
-			name:     "LPUSH with empty strings",
-			input:    []string{"LPUSH", "empty_list", "", "text", ""},
-			expected: ":3\r\n",
+			name:         "LPUSH with empty strings",
+			input:        []string{"LPUSH", "empty_list", "", "text", ""},
+			expected:     ":3\r\n",
+			expectedList: []string{"", "text", ""},
 		},
 		{
-			name:     "LPUSH with long strings",
-			input:    []string{"LPUSH", "long_string_list", "verylongstring", "short"},
-			expected: ":2\r\n",
+			name:         "LPUSH with long strings",
+			input:        []string{"LPUSH", "long_string_list", "verylongstring", "short"},
+			expected:     ":2\r\n",
+			expectedList: []string{"short", "verylongstring"},
+		},
+		{
+			name: "LPUSH multiple elements",
+			setup: [][]string{
+				{"LPUSH", "pear", "raspberry"},
+				{"LPUSH", "pear", "pear", "pineapple"},
+			},
+			input:        []string{"LRANGE", "pear", "0", "-1"},
+			expected:     "*3\r\n$9\r\npineapple\r\n$4\r\npear\r\n$9\r\nraspberry\r\n",
+			expectedList: []string{"pineapple", "pear", "raspberry"},
 		},
 	}
 
@@ -316,18 +382,8 @@ func TestLPushCommand(t *testing.T) {
 			verifyCmd := []string{"LRANGE", tt.input[1], "0", "-1"}
 			verifyResult := processor.ProcessCommand(verifyCmd)
 
-			var allElements []string
-			// Add current LPUSH elements
-			allElements = append(allElements, tt.input[2:]...)
-			// Get all elements that should be in the list (both from setup and current LPUSH)
-			for _, setupCmd := range tt.setup {
-				if len(setupCmd) > 2 {
-					allElements = append(allElements, setupCmd[2:]...)
-				}
-			}
-
 			// Construct expected LRANGE result based on all elements
-			expectedListResponse := constructListResponse(allElements)
+			expectedListResponse := constructListResponse(tt.expectedList)
 			if verifyResult != expectedListResponse {
 				t.Errorf("List order incorrect after LPUSH. Got %q, want %q", verifyResult, expectedListResponse)
 			}

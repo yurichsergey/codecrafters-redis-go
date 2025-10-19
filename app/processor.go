@@ -241,6 +241,9 @@ func (p *Processor) handleLPush(row []string) string {
 	elements := row[2:]
 
 	// Prepend elements in reverse order to maintain the correct list order
+	for i, j := 0, len(elements)-1; i < j; i, j = i+1, j-1 {
+		elements[i], elements[j] = elements[j], elements[i]
+	}
 	p.storageList[key] = append(elements, p.storageList[key]...)
 
 	return fmt.Sprintf(":%d\r\n", len(p.storageList[key]))

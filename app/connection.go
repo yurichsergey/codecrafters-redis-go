@@ -36,7 +36,7 @@ func handleConnection(processor *Processor, conn net.Conn) {
 				fmt.Println("Error write: ", err.Error())
 				return
 			}
-			fmt.Println("it was written: ", write)
+			fmt.Println("it was written (bytes): ", write, response)
 		}
 	}
 }
