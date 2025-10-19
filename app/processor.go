@@ -13,13 +13,14 @@ type StorageItem struct {
 }
 
 type Processor struct {
-	storage map[string]*StorageItem
+	storage     map[string]*StorageItem
+	storageList map[string][]string
 }
 
 func NewProcessor() *Processor {
 	return &Processor{
-
-		storage: make(map[string]*StorageItem),
+		storage:     make(map[string]*StorageItem),
+		storageList: make(map[string][]string),
 	}
 }
 
@@ -30,16 +31,20 @@ func (p *Processor) ProcessCommand(row []string) string {
 		response = "$-1\r\n"
 		return response
 	}
+
 	command := strings.ToUpper(row[0])
-	if command == "PING" {
+	switch command {
+	case "PING":
 		response = "+PONG\r\n"
-	} else if command == "ECHO" {
+	case "ECHO":
 		response = p.commandEcho(row)
-	} else if command == "SET" {
+	case "SET":
 		response = p.commandSet(row)
-	} else if command == "GET" {
+	case "GET":
 		response = p.commandGet(row)
-	} else {
+	case "RPUSH":
+		response = p.handleRPush(row)
+	default:
 		response = "+PONG\r\n"
 	}
 	return response
@@ -113,7 +118,7 @@ func (p *Processor) commandGet(row []string) string {
 	// Check if the key exists in storage
 	item, exists := p.storage[key]
 	if !exists {
-		// Return null bulk string if key doesn't exist
+		// Return null bulk string if the key doesn't exist
 		return "$-1\r\n"
 	}
 
@@ -125,4 +130,19 @@ func (p *Processor) commandGet(row []string) string {
 	// Return the value as a RESP bulk string
 	// Format: $<length>\r\n<data>\r\n
 	return fmt.Sprintf("$%d\r\n%s\r\n", len(item.value), item.value)
+}
+
+// New function to handle RPUSH command
+func (p *Processor) handleRPush(row []string) string {
+	// Check if there are enough arguments
+	if len(row) < 3 {
+		return "-ERR wrong number of arguments for 'rpush' command\r\n"
+	}
+
+	key := row[1]
+	elements := row[2:]
+
+	p.storageList[key] = append(p.storageList[key], elements...)
+
+	return fmt.Sprintf(":%d\r\n", len(p.storageList[key]))
 }
