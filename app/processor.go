@@ -48,6 +48,8 @@ func (p *Processor) ProcessCommand(row []string) string {
 		response = p.handleLRange(row)
 	case "LPUSH":
 		response = p.handleLPush(row)
+	case "LLEN":
+		response = p.handleLLen(row)
 	default:
 		response = "+PONG\r\n"
 	}
@@ -247,4 +249,24 @@ func (p *Processor) handleLPush(row []string) string {
 	p.storageList[key] = append(elements, p.storageList[key]...)
 
 	return fmt.Sprintf(":%d\r\n", len(p.storageList[key]))
+}
+
+// New function to handle LLEN command
+func (p *Processor) handleLLen(row []string) string {
+	// Check if there are enough arguments
+	if len(row) != 2 {
+		return "-ERR wrong number of arguments for 'llen' command\r\n"
+	}
+
+	key := row[1]
+
+	// Get the list length
+	list, exists := p.storageList[key]
+	if !exists {
+		// If list doesn't exist, return 0
+		return ":0\r\n"
+	}
+
+	// Return the length of the list as a RESP integer
+	return fmt.Sprintf(":%d\r\n", len(list))
 }
