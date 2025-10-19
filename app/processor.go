@@ -50,6 +50,8 @@ func (p *Processor) ProcessCommand(row []string) string {
 		response = p.handleLPush(row)
 	case "LLEN":
 		response = p.handleLLen(row)
+	case "LPOP":
+		response = p.handleLPop(row)
 	default:
 		response = "+PONG\r\n"
 	}
@@ -269,4 +271,27 @@ func (p *Processor) handleLLen(row []string) string {
 
 	// Return the length of the list as a RESP integer
 	return fmt.Sprintf(":%d\r\n", len(list))
+}
+
+func (p *Processor) handleLPop(row []string) string {
+	// Check if correct number of arguments
+	if len(row) != 2 {
+		return "-ERR wrong number of arguments for 'lpop' command\r\n"
+	}
+
+	// Get list key
+	key := row[1]
+
+	// Check if list exists
+	list, exists := p.storageList[key]
+	if !exists || len(list) == 0 {
+		return "$-1\r\n"
+	}
+
+	// Remove and return the first element
+	element := list[0]
+	p.storageList[key] = list[1:]
+
+	// Return the element as a RESP bulk string
+	return fmt.Sprintf("$%d\r\n%s\r\n", len(element), element)
 }

@@ -490,6 +490,7 @@ func constructListResponse(values []string) string {
 
 	return response
 }
+
 func TestLLenCommand(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -548,6 +549,171 @@ func TestLLenCommand(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
 			if result != tt.expected {
 				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestLPopCommand(t *testing.T) {
+	tests := []struct {
+		name         string
+		setup        [][]string // Commands to run before the test
+		input        []string
+		expected     string
+		expectedList []string
+	}{
+		{
+			name:     "LPOP on non-existent list",
+			input:    []string{"LPOP", "nonexistent_list"},
+			expected: "$-1\r\n",
+		},
+		{
+			name:         "LPOP from a single-element list",
+			setup:        [][]string{{"RPUSH", "single_list", "a"}},
+			input:        []string{"LPOP", "single_list"},
+			expected:     "$1\r\na\r\n",
+			expectedList: []string{},
+		},
+		{
+			name:         "LPOP from a multi-element list",
+			setup:        [][]string{{"RPUSH", "multi_list", "a", "b", "c", "d"}},
+			input:        []string{"LPOP", "multi_list"},
+			expected:     "$1\r\na\r\n",
+			expectedList: []string{"b", "c", "d"},
+		},
+		{
+			name:         "LPOP multiple times from a list",
+			setup:        [][]string{{"RPUSH", "multiple_list", "a", "b", "c", "d"}},
+			input:        []string{"LPOP", "multiple_list"},
+			expected:     "$1\r\na\r\n",
+			expectedList: []string{"b", "c", "d"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			processor := NewProcessor()
+
+			// Run setup commands
+			for _, setupCmd := range tt.setup {
+				processor.ProcessCommand(setupCmd)
+			}
+
+			// Run the actual LPOP test
+			result := processor.ProcessCommand(tt.input)
+			if result != tt.expected {
+				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+			}
+
+			// Verify the order using LRANGE
+			verifyCmd := []string{"LRANGE", tt.input[1], "0", "-1"}
+			verifyResult := processor.ProcessCommand(verifyCmd)
+
+			// Construct expected LRANGE result
+			expectedListResponse := constructListResponse(tt.expectedList)
+			if verifyResult != expectedListResponse {
+				t.Errorf("List order incorrect after LPOP. Got %q, want %q", verifyResult, expectedListResponse)
+			}
+		})
+	}
+}
+
+func TestLPopCommandErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{
+			name:     "LPOP without key",
+			input:    []string{"LPOP"},
+			expected: "-ERR wrong number of arguments for 'lpop' command\r\n",
+		},
+		{
+			name:     "LPOP with too many arguments",
+			input:    []string{"LPOP", "list_key", "extra"},
+			expected: "-ERR wrong number of arguments for 'lpop' command\r\n",
+		},
+	}
+
+	processor := NewProcessor()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := processor.ProcessCommand(tt.input)
+			if result != tt.expected {
+				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestLPopCaseInsensitivity(t *testing.T) {
+	tests := []struct {
+		name     string
+		setup    [][]string
+		input    []string
+		expected string
+	}{
+		{
+			name:     "LPOP lowercase",
+			setup:    [][]string{{"RPUSH", "list_key", "a", "b", "c"}},
+			input:    []string{"lpop", "list_key"},
+			expected: "$1\r\na\r\n",
+		},
+		{
+			name:     "LPOP mixed case",
+			setup:    [][]string{{"RPUSH", "list_key", "a", "b", "c"}},
+			input:    []string{"LpOp", "list_key"},
+			expected: "$1\r\na\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			processor := NewProcessor()
+
+			// Run setup commands
+			for _, setupCmd := range tt.setup {
+				processor.ProcessCommand(setupCmd)
+			}
+
+			// Run the actual LPOP test
+			result := processor.ProcessCommand(tt.input)
+			if result != tt.expected {
+				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func BenchmarkLPopCommand(b *testing.B) {
+	testCases := []struct {
+		name  string
+		setup []string
+		input []string
+	}{
+		{
+			name:  "LPOP from small list",
+			setup: []string{"RPUSH", "small_list", "a", "b", "c"},
+			input: []string{"LPOP", "small_list"},
+		},
+		{
+			name:  "LPOP from medium list",
+			setup: []string{"RPUSH", "medium_list", "a", "b", "c", "d", "e", "f", "g"},
+			input: []string{"LPOP", "medium_list"},
+		},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			processor := NewProcessor()
+
+			// Setup the list for benchmarking
+			processor.ProcessCommand(tc.setup)
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				processor.ProcessCommand(tc.input)
 			}
 		})
 	}
