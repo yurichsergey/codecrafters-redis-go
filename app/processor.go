@@ -274,13 +274,23 @@ func (p *Processor) handleLLen(row []string) string {
 }
 
 func (p *Processor) handleLPop(row []string) string {
-	// Check if correct number of arguments
-	if len(row) != 2 {
+	if len(row) < 2 {
 		return "-ERR wrong number of arguments for 'lpop' command\r\n"
 	}
 
-	// Get list key
 	key := row[1]
+
+	// Default count is 1
+	count := 1
+
+	// If count argument is provided
+	if len(row) >= 3 {
+		var err error
+		count, err = strconv.Atoi(row[2])
+		if err != nil || count < 0 {
+			return "-ERR value is not an integer or out of range\r\n"
+		}
+	}
 
 	// Check if list exists
 	list, exists := p.storageList[key]
@@ -288,10 +298,40 @@ func (p *Processor) handleLPop(row []string) string {
 		return "$-1\r\n"
 	}
 
-	// Remove and return the first element
-	element := list[0]
-	p.storageList[key] = list[1:]
+	// Determine how many elements to actually remove
+	numToRemove := count
+	if numToRemove > len(list) {
+		numToRemove = len(list)
+	}
 
-	// Return the element as a RESP bulk string
-	return fmt.Sprintf("$%d\r\n%s\r\n", len(element), element)
+	// If count is 1 (no count argument provided), return single bulk string
+	if len(row) == 2 {
+		removed := list[0]
+		p.storageList[key] = list[1:]
+
+		// Clean up empty list
+		if len(p.storageList[key]) == 0 {
+			delete(p.storageList, key)
+		}
+
+		return fmt.Sprintf("$%d\r\n%s\r\n", len(removed), removed)
+	}
+
+	// Remove elements from the front
+	removed := list[:numToRemove]
+	p.storageList[key] = list[numToRemove:]
+
+	// Clean up empty list
+	if len(p.storageList[key]) == 0 {
+		delete(p.storageList, key)
+	}
+
+	// Return as RESP array
+	var response strings.Builder
+	response.WriteString(fmt.Sprintf("*%d\r\n", len(removed)))
+	for _, elem := range removed {
+		response.WriteString(fmt.Sprintf("$%d\r\n%s\r\n", len(elem), elem))
+	}
+
+	return response.String()
 }

@@ -632,7 +632,7 @@ func TestLPopCommandErrors(t *testing.T) {
 		{
 			name:     "LPOP with too many arguments",
 			input:    []string{"LPOP", "list_key", "extra"},
-			expected: "-ERR wrong number of arguments for 'lpop' command\r\n",
+			expected: "-ERR value is not an integer or out of range\r\n",
 		},
 	}
 
