@@ -46,6 +46,8 @@ func (p *Processor) ProcessCommand(row []string) string {
 		response = p.handleRPush(row)
 	case "LRANGE":
 		response = p.handleLRange(row)
+	case "LPUSH":
+		response = p.handleLPush(row)
 	default:
 		response = "+PONG\r\n"
 	}
@@ -226,4 +228,20 @@ func (p *Processor) handleLRange(row []string) string {
 	}
 
 	return response
+}
+
+// New function to handle LPUSH command
+func (p *Processor) handleLPush(row []string) string {
+	// Check if there are enough arguments
+	if len(row) < 3 {
+		return "-ERR wrong number of arguments for 'lpush' command\r\n"
+	}
+
+	key := row[1]
+	elements := row[2:]
+
+	// Prepend elements in reverse order to maintain the correct list order
+	p.storageList[key] = append(elements, p.storageList[key]...)
+
+	return fmt.Sprintf(":%d\r\n", len(p.storageList[key]))
 }
