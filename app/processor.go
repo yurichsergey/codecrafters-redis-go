@@ -44,6 +44,8 @@ func (p *Processor) ProcessCommand(row []string) string {
 		response = p.commandGet(row)
 	case "RPUSH":
 		response = p.handleRPush(row)
+	case "LRANGE":
+		response = p.handleLRange(row)
 	default:
 		response = "+PONG\r\n"
 	}
@@ -145,4 +147,61 @@ func (p *Processor) handleRPush(row []string) string {
 	p.storageList[key] = append(p.storageList[key], elements...)
 
 	return fmt.Sprintf(":%d\r\n", len(p.storageList[key]))
+}
+
+// New function to handle LRANGE command
+func (p *Processor) handleLRange(row []string) string {
+	// Check if there are enough arguments
+	if len(row) != 4 {
+		return "-ERR wrong number of arguments for 'lrange' command\r\n"
+	}
+
+	key := row[1]
+	startStr := row[2]
+	stopStr := row[3]
+
+	// Parse start and stop indexes
+	start, err := strconv.Atoi(startStr)
+	if err != nil || start < 0 {
+		return "-ERR invalid start index\r\n"
+	}
+
+	stop, err := strconv.Atoi(stopStr)
+	if err != nil || stop < 0 {
+		return "-ERR invalid stop index\r\n"
+	}
+
+	// Retrieve the list
+	list, exists := p.storageList[key]
+	if !exists {
+		// If list doesn't exist, return an empty array
+		return "*0\r\n"
+	}
+
+	// Adjust stop index if it's greater than or equal to list length
+	if stop >= len(list) {
+		stop = len(list) - 1
+	}
+
+	// Check if start index is out of bounds
+	if start >= len(list) {
+		return "*0\r\n"
+	}
+
+	// Check if start index is greater than stop index
+	if start > stop {
+		return "*0\r\n"
+	}
+
+	// Extract the sublist
+	subList := list[start : stop+1]
+
+	// Construct the RESP array response
+	var response string
+	response = fmt.Sprintf("*%d\r\n", len(subList))
+	for _, item := range subList {
+		response += fmt.Sprintf("$%d\r\n%s\r\n", len(item), item)
+	}
+
+	return response
 }
