@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -12,15 +13,23 @@ type StorageItem struct {
 	expiry int64
 }
 
+type BlockingClient struct {
+	key     string
+	waiting chan string
+}
+
 type Processor struct {
-	storage     map[string]*StorageItem
-	storageList map[string][]string
+	storage         map[string]*StorageItem
+	storageList     map[string][]string
+	blockingClients map[string][]*BlockingClient
+	clientsMutex    sync.Mutex
 }
 
 func NewProcessor() *Processor {
 	return &Processor{
-		storage:     make(map[string]*StorageItem),
-		storageList: make(map[string][]string),
+		storage:         make(map[string]*StorageItem),
+		storageList:     make(map[string][]string),
+		blockingClients: make(map[string][]*BlockingClient),
 	}
 }
 
@@ -52,6 +61,8 @@ func (p *Processor) ProcessCommand(row []string) string {
 		response = p.handleLLen(row)
 	case "LPOP":
 		response = p.handleLPop(row)
+	case "BLPOP":
+		response = p.handleBLPop(row)
 	default:
 		response = "+PONG\r\n"
 	}
@@ -151,6 +162,27 @@ func (p *Processor) handleRPush(row []string) string {
 	elements := row[2:]
 
 	p.storageList[key] = append(p.storageList[key], elements...)
+
+	// Wake up blocking clients for this key
+	p.clientsMutex.Lock()
+	defer p.clientsMutex.Unlock()
+
+	if clients, exists := p.blockingClients[key]; exists {
+		if len(clients) > 0 {
+			// Wake up the first (longest waiting) blocking client
+			client := clients[0]
+			client.waiting <- p.storageList[key][0]
+
+			// Remove the first element and the first client
+			p.storageList[key] = p.storageList[key][1:]
+			p.blockingClients[key] = clients[1:]
+
+			// Clean up empty list of blocking clients
+			if len(p.blockingClients[key]) == 0 {
+				delete(p.blockingClients, key)
+			}
+		}
+	}
 
 	return fmt.Sprintf(":%d\r\n", len(p.storageList[key]))
 }
@@ -334,4 +366,56 @@ func (p *Processor) handleLPop(row []string) string {
 	}
 
 	return response.String()
+}
+
+func (p *Processor) handleBLPop(row []string) string {
+	// Check if there are enough arguments
+	if len(row) < 3 {
+		return "-ERR wrong number of arguments for 'blpop' command\r\n"
+	}
+
+	// Currently only support timeout of 0
+	timeout, err := strconv.Atoi(row[len(row)-1])
+	if err != nil || timeout != 0 {
+		return "-ERR only timeout of 0 is currently supported\r\n"
+	}
+
+	// Get the keys
+	keys := row[1 : len(row)-1]
+
+	// Check each list for an element
+	for _, key := range keys {
+		list, exists := p.storageList[key]
+		if exists && len(list) > 0 {
+			// Pop the first element
+			element := list[0]
+			p.storageList[key] = list[1:]
+
+			// Clean up empty list
+			if len(p.storageList[key]) == 0 {
+				delete(p.storageList, key)
+			}
+
+			// Return the key and element as a RESP array
+			return fmt.Sprintf("*2\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",
+				len(key), key, len(element), element)
+		}
+	}
+
+	// If no elements are available, create a blocking client
+	blockingClient := &BlockingClient{
+		key:     keys[0], // Use the first key for now
+		waiting: make(chan string, 1),
+	}
+
+	p.clientsMutex.Lock()
+	p.blockingClients[blockingClient.key] = append(p.blockingClients[blockingClient.key], blockingClient)
+	p.clientsMutex.Unlock()
+
+	// Block until an element is available
+	element := <-blockingClient.waiting
+
+	// Return the key and element
+	return fmt.Sprintf("*2\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",
+		len(blockingClient.key), blockingClient.key, len(element), element)
 }
