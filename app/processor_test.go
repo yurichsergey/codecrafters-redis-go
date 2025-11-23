@@ -24,17 +24,17 @@ func TestDefineResponse(t *testing.T) {
 		{
 			name:     "ECHO command with single argument",
 			input:    []string{"ECHO", "hello"},
-			expected: "+hello\r\n",
+			expected: "$5\r\nhello\r\n",
 		},
 		{
 			name:     "ECHO command with multiple arguments",
 			input:    []string{"ECHO", "hello", "world", "test"},
-			expected: "+hello world test\r\n",
+			expected: "$16\r\nhello world test\r\n",
 		},
 		{
 			name:     "ECHO command without arguments",
 			input:    []string{"ECHO"},
-			expected: "+\r\n",
+			expected: "$0\r\n\r\n",
 		},
 		{
 			name:     "Unknown command",
@@ -59,7 +59,7 @@ func TestDefineResponse(t *testing.T) {
 		{
 			name:     "Case sensitivity test - echo lowercase",
 			input:    []string{"echo", "test"},
-			expected: "+test\r\n",
+			expected: "$4\r\ntest\r\n",
 		},
 	}
 
@@ -85,14 +85,14 @@ func TestDefineResponseEdgeCases(t *testing.T) {
 
 	// Test ECHO with an empty string argument
 	result = processor.ProcessCommand([]string{"ECHO", ""})
-	expected := "+\r\n"
+	expected := "$0\r\n\r\n"
 	if result != expected {
 		t.Errorf("defineResponse([\"ECHO\", \"\"]) = %q, want %q", result, expected)
 	}
 
 	// Test ECHO with spaces in arguments
 	result = processor.ProcessCommand([]string{"ECHO", "hello world", "test"})
-	expected = "+hello world test\r\n"
+	expected = "$16\r\nhello world test\r\n"
 	if result != expected {
 		t.Errorf("defineResponse([\"ECHO\", \"hello world\", \"test\"]) = %q, want %q", result, expected)
 	}
@@ -524,17 +524,17 @@ func TestCaseInsensitiveCommands(t *testing.T) {
 		{
 			name:     "echo lowercase",
 			input:    []string{"echo", "test"},
-			expected: "+test\r\n",
+			expected: "$4\r\ntest\r\n",
 		},
 		{
 			name:     "ECHO uppercase",
 			input:    []string{"ECHO", "test"},
-			expected: "+test\r\n",
+			expected: "$4\r\ntest\r\n",
 		},
 		{
 			name:     "EcHo mixed case",
 			input:    []string{"EcHo", "hello"},
-			expected: "+hello\r\n",
+			expected: "$5\r\nhello\r\n",
 		},
 		{
 			name:     "set lowercase",

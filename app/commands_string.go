@@ -8,16 +8,14 @@ import (
 )
 
 func (p *Processor) commandEcho(strings []string) string {
-	var response string
-	response = "+"
+	var content string
 	if len(strings) > 1 {
-		response += strings[1:][0]
+		content += strings[1:][0]
 		for _, s := range strings[2:] {
-			response += " " + s
+			content += " " + s
 		}
 	}
-	response += "\r\n"
-	return response
+	return fmt.Sprintf("$%d\r\n%s\r\n", len(content), content)
 }
 
 func (p *Processor) commandSet(row []string) string {
