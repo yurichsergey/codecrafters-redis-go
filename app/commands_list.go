@@ -18,6 +18,9 @@ func (p *Processor) handleRPush(row []string) string {
 
 	p.storageList[key] = append(p.storageList[key], elements...)
 
+	// Calculate the new length of the list
+	newLength := len(p.storageList[key])
+
 	// Wake up blocking clients for this key
 	p.clientsMutex.Lock()
 	defer p.clientsMutex.Unlock()
@@ -43,7 +46,7 @@ func (p *Processor) handleRPush(row []string) string {
 		}
 	}
 
-	return fmt.Sprintf(":%d\r\n", len(p.storageList[key]))
+	return fmt.Sprintf(":%d\r\n", newLength)
 }
 
 // New function to handle LRANGE command

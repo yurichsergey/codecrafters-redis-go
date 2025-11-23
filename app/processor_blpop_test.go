@@ -297,3 +297,32 @@ func BenchmarkBLPOPCommand(b *testing.B) {
 		})
 	}
 }
+
+func TestRPushReturnValueWithBlockedClients(t *testing.T) {
+	t.Run("RPUSH returns correct length when client is blocked", func(t *testing.T) {
+		processor := NewProcessor()
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+
+		// Blocking client
+		go func() {
+			defer wg.Done()
+			processor.ProcessCommand([]string{"BLPOP", "return_val_list", "0"})
+		}()
+
+		// Ensure client is blocked
+		time.Sleep(50 * time.Millisecond)
+
+		// RPUSH
+		result := processor.ProcessCommand([]string{"RPUSH", "return_val_list", "element"})
+
+		wg.Wait()
+
+		// Expect 1 because we pushed 1 element, even if it was immediately popped
+		expected := ":1\r\n"
+		if result != expected {
+			t.Errorf("RPUSH result = %q, want %q", result, expected)
+		}
+	})
+}
