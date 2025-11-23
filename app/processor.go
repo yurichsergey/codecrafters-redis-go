@@ -13,9 +13,13 @@ type StorageItem struct {
 	expiry int64
 }
 
+type BlockingResult struct {
+	key   string
+	value string
+}
+
 type BlockingClient struct {
-	key     string
-	waiting chan string
+	waiting chan BlockingResult
 }
 
 type Processor struct {
@@ -168,19 +172,23 @@ func (p *Processor) handleRPush(row []string) string {
 	defer p.clientsMutex.Unlock()
 
 	if clients, exists := p.blockingClients[key]; exists {
-		if len(clients) > 0 {
+		// Loop while we have both waiting clients and elements in the list
+		for len(clients) > 0 && len(p.storageList[key]) > 0 {
 			// Wake up the first (longest waiting) blocking client
 			client := clients[0]
-			client.waiting <- p.storageList[key][0]
+			client.waiting <- BlockingResult{key: key, value: p.storageList[key][0]}
 
 			// Remove the first element and the first client
 			p.storageList[key] = p.storageList[key][1:]
-			p.blockingClients[key] = clients[1:]
+			clients = clients[1:]
+		}
 
-			// Clean up empty list of blocking clients
-			if len(p.blockingClients[key]) == 0 {
-				delete(p.blockingClients, key)
-			}
+		// Update the blocking clients list
+		p.blockingClients[key] = clients
+
+		// Clean up empty list of blocking clients
+		if len(p.blockingClients[key]) == 0 {
+			delete(p.blockingClients, key)
 		}
 	}
 
@@ -404,18 +412,19 @@ func (p *Processor) handleBLPop(row []string) string {
 
 	// If no elements are available, create a blocking client
 	blockingClient := &BlockingClient{
-		key:     keys[0], // Use the first key for now
-		waiting: make(chan string, 1),
+		waiting: make(chan BlockingResult, 1),
 	}
 
 	p.clientsMutex.Lock()
-	p.blockingClients[blockingClient.key] = append(p.blockingClients[blockingClient.key], blockingClient)
+	for _, key := range keys {
+		p.blockingClients[key] = append(p.blockingClients[key], blockingClient)
+	}
 	p.clientsMutex.Unlock()
 
 	// Block until an element is available
-	element := <-blockingClient.waiting
+	result := <-blockingClient.waiting
 
 	// Return the key and element
 	return fmt.Sprintf("*2\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",
-		len(blockingClient.key), blockingClient.key, len(element), element)
+		len(result.key), result.key, len(result.value), result.value)
 }

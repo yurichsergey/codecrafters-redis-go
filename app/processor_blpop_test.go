@@ -13,11 +13,7 @@ func TestBLPOPBasicFunctionality(t *testing.T) {
 		input    []string
 		expected string
 	}{
-		{
-			name:     "BLPOP on empty list",
-			input:    []string{"BLPOP", "list_key", "0"},
-			expected: "", // Will be blocked
-		},
+		// Removed "BLPOP on empty list" case as it blocks indefinitely in this synchronous test runner
 		{
 			name:     "BLPOP with non-zero timeout (currently unsupported)",
 			input:    []string{"BLPOP", "list_key", "10"},
@@ -85,7 +81,7 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 		processor := NewProcessor()
 
 		var wg sync.WaitGroup
-		wg.Add(3)
+		wg.Add(2) // Wait for Client 1 and RPUSH
 
 		// Result channels for multiple blocking clients
 		results := make(chan string, 2)
@@ -97,9 +93,9 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 			results <- result
 		}()
 
-		// Second blocking client
+		// Second blocking client (will block initially)
 		go func() {
-			defer wg.Done()
+			// No wg.Done() here initially because it blocks
 			result := processor.ProcessCommand([]string{"BLPOP", "multi_list", "0"})
 			results <- result
 		}()
@@ -111,7 +107,7 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 			processor.ProcessCommand([]string{"RPUSH", "multi_list", "element"})
 		}()
 
-		// Wait for all goroutines to complete
+		// Wait for Client 1 and RPUSH to complete
 		wg.Wait()
 
 		// Collect results
@@ -127,6 +123,60 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 			t.Errorf("Unexpected second BLPOP result: %q", secondResult)
 		case <-time.After(100 * time.Millisecond):
 			// Expected behavior - second client remains blocked
+		}
+
+		// Unblock the second client so the test can finish
+		go func() {
+			processor.ProcessCommand([]string{"RPUSH", "multi_list", "cleanup"})
+		}()
+
+		// Wait for the second client to finish
+		select {
+		case <-results:
+			// Success
+		case <-time.After(1 * time.Second):
+			t.Fatal("Second client did not unblock after cleanup")
+		}
+	})
+
+	t.Run("BLPOP wakes up multiple clients with multiple elements", func(t *testing.T) {
+		processor := NewProcessor()
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		results := make(chan string, 2)
+
+		// Client 1
+		go func() {
+			defer wg.Done()
+			results <- processor.ProcessCommand([]string{"BLPOP", "multi_wake", "0"})
+		}()
+
+		// Client 2
+		go func() {
+			defer wg.Done()
+			results <- processor.ProcessCommand([]string{"BLPOP", "multi_wake", "0"})
+		}()
+
+		// RPUSH with 2 elements
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			processor.ProcessCommand([]string{"RPUSH", "multi_wake", "val1", "val2"})
+		}()
+
+		wg.Wait()
+
+		// Verify both clients got results
+		for i := 0; i < 2; i++ {
+			select {
+			case res := <-results:
+				if res == "" {
+					t.Errorf("Received empty result")
+				}
+			case <-time.After(1 * time.Second):
+				t.Fatal("Timeout waiting for clients to wake up")
+			}
 		}
 	})
 }
@@ -178,22 +228,42 @@ func TestBLPOPCaseInsensitivity(t *testing.T) {
 	}{
 		{
 			name:     "BLPOP lowercase",
-			input:    []string{"blpop", "list_key", "0"},
-			expected: "", // Will be blocked
+			input:    []string{"blpop", "case_list", "0"},
+			expected: "*2\r\n$9\r\ncase_list\r\n$7\r\nelement\r\n",
 		},
 		{
 			name:     "BLPOP mixed case",
-			input:    []string{"BlPop", "list_key", "0"},
-			expected: "", // Will be blocked
+			input:    []string{"BlPop", "case_list", "0"},
+			expected: "*2\r\n$9\r\ncase_list\r\n$7\r\nelement\r\n",
 		},
 	}
 
-	processor := NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := processor.ProcessCommand(tt.input)
-			if result != tt.expected {
-				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+			processor := NewProcessor()
+
+			// Result channel
+			resultChan := make(chan string, 1)
+
+			// Blocking call
+			go func() {
+				resultChan <- processor.ProcessCommand(tt.input)
+			}()
+
+			// Unblock
+			go func() {
+				time.Sleep(10 * time.Millisecond)
+				processor.ProcessCommand([]string{"RPUSH", "case_list", "element"})
+			}()
+
+			// Check result
+			select {
+			case result := <-resultChan:
+				if result != tt.expected {
+					t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
+				}
+			case <-time.After(1 * time.Second):
+				t.Fatal("BLPOP did not unblock")
 			}
 		})
 	}
