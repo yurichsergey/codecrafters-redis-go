@@ -6,7 +6,8 @@ import (
 	"strings"
 )
 
-// New function to handle RPUSH command
+// handleRPush appends one or more elements to the end of a list.
+// Example: RPUSH mylist "hello" "world"
 func (p *Processor) handleRPush(row []string) string {
 	// Check if there are enough arguments
 	if len(row) < 3 {
@@ -49,7 +50,8 @@ func (p *Processor) handleRPush(row []string) string {
 	return fmt.Sprintf(":%d\r\n", newLength)
 }
 
-// New function to handle LRANGE command
+// handleLRange returns the specified elements of the list stored at key.
+// Example: LRANGE mylist 0 -1
 func (p *Processor) handleLRange(row []string) string {
 	// Check if there are enough arguments
 	if len(row) != 4 {
@@ -128,7 +130,8 @@ func (p *Processor) handleLRange(row []string) string {
 	return response
 }
 
-// New function to handle LPUSH command
+// handleLPush inserts one or more elements at the head of a list.
+// Example: LPUSH mylist "world"
 func (p *Processor) handleLPush(row []string) string {
 	// Check if there are enough arguments
 	if len(row) < 3 {
@@ -147,7 +150,8 @@ func (p *Processor) handleLPush(row []string) string {
 	return fmt.Sprintf(":%d\r\n", len(p.storageList[key]))
 }
 
-// New function to handle LLEN command
+// handleLLen returns the length of the list stored at key.
+// Example: LLEN mylist
 func (p *Processor) handleLLen(row []string) string {
 	// Check if there are enough arguments
 	if len(row) != 2 {
@@ -167,6 +171,8 @@ func (p *Processor) handleLLen(row []string) string {
 	return fmt.Sprintf(":%d\r\n", len(list))
 }
 
+// handleLPop removes and returns the first elements of the list stored at key.
+// Example: LPOP mylist
 func (p *Processor) handleLPop(row []string) string {
 	if len(row) < 2 {
 		return "-ERR wrong number of arguments for 'lpop' command\r\n"
@@ -230,6 +236,9 @@ func (p *Processor) handleLPop(row []string) string {
 	return response.String()
 }
 
+// handleBLPop removes and returns the first element of the list stored at key,
+// blocking if the list is empty.
+// Example: BLPOP mylist 0
 func (p *Processor) handleBLPop(row []string) string {
 	// Check if there are enough arguments
 	if len(row) < 3 {

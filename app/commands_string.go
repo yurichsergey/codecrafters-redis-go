@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+// commandEcho returns the message passed to it.
+// Example: ECHO "Hello World"
 func (p *Processor) commandEcho(strings []string) string {
 	var content string
 	if len(strings) > 1 {
@@ -18,6 +20,8 @@ func (p *Processor) commandEcho(strings []string) string {
 	return fmt.Sprintf("$%d\r\n%s\r\n", len(content), content)
 }
 
+// commandSet sets the string value of a key.
+// Example: SET mykey "Hello"
 func (p *Processor) commandSet(row []string) string {
 	// SET command requires at least a key and a value
 	if len(row) < 3 {
@@ -62,6 +66,8 @@ func (p *Processor) commandSet(row []string) string {
 	return "+OK\r\n"
 }
 
+// commandGet gets the value of a key.
+// Example: GET mykey
 func (p *Processor) commandGet(row []string) string {
 	// GET command requires a key argument
 	if len(row) < 2 {

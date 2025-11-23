@@ -26,6 +26,7 @@ type Processor struct {
 	clientsMutex    sync.Mutex
 }
 
+// NewProcessor creates a new Processor instance with initialized storage and blocking clients.
 func NewProcessor() *Processor {
 	return &Processor{
 		storage:         make(map[string]*StorageItem),
@@ -34,6 +35,7 @@ func NewProcessor() *Processor {
 	}
 }
 
+// ProcessCommand handles the incoming Redis command and returns the response.
 func (p *Processor) ProcessCommand(row []string) string {
 	var response string
 	response = ""
