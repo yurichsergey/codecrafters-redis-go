@@ -6,24 +6,33 @@ import (
 )
 
 type StorageItem struct {
-	value  string
+	// value is the string value stored in the item
+	value string
+	// expiry is the expiration time in milliseconds
 	expiry int64
 }
 
 type BlockingResult struct {
-	key   string
+	// key is the list key that the client was waiting for
+	key string
+	// value is the element popped from the list
 	value string
 }
 
 type BlockingClient struct {
+	// waiting is a channel that receives the result when an element is available
 	waiting chan BlockingResult
 }
 
 type Processor struct {
-	storage         map[string]*StorageItem
-	storageList     map[string][]string
+	// storage holds the key-value pairs for string commands
+	storage map[string]*StorageItem
+	// storageList holds the key-value pairs for list commands
+	storageList map[string][]string
+	// blockingClients holds the list of clients waiting for elements on specific keys
 	blockingClients map[string][]*BlockingClient
-	clientsMutex    sync.Mutex
+	// clientsMutex protects access to the blockingClients map
+	clientsMutex sync.Mutex
 }
 
 // NewProcessor creates a new Processor instance with initialized storage and blocking clients.
