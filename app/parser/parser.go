@@ -1,4 +1,4 @@
-package main
+package parser
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// parseString parses a Redis protocol string and returns a slice of parsed elements
-func parseString(input string) ([]string, error) {
+// ParseString parses a Redis protocol string and returns a slice of parsed elements
+func ParseString(input string) ([]string, error) {
 	if len(input) == 0 {
 		return nil, fmt.Errorf("empty input string")
 	}

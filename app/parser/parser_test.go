@@ -1,4 +1,4 @@
-package main
+package parser
 
 import (
 	"reflect"
@@ -130,7 +130,7 @@ func TestParseString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := parseString(tt.input)
+			result, err := ParseString(tt.input)
 
 			if tt.hasError {
 				if err == nil {
@@ -154,7 +154,7 @@ func TestParseString(t *testing.T) {
 func TestParseStringEdgeCases(t *testing.T) {
 	t.Run("Input without final CRLF", func(t *testing.T) {
 		input := "*1\r\n$5\r\nhello"
-		result, err := parseString(input)
+		result, err := ParseString(input)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -170,7 +170,7 @@ func TestParseStringEdgeCases(t *testing.T) {
 			largeString = largeString[:i] + "a" + largeString[i+1:]
 		}
 		input := "*1\r\n$1000\r\n" + largeString + "\r\n"
-		result, err := parseString(input)
+		result, err := ParseString(input)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -185,7 +185,7 @@ func BenchmarkParseString(b *testing.B) {
 	input := "*4\r\n$2\r\nee\r\n$6\r\njhgjhg\r\n$3\r\nkjg\r\n$2\r\nkl\r\n"
 
 	for i := 0; i < b.N; i++ {
-		_, err := parseString(input)
+		_, err := ParseString(input)
 		if err != nil {
 			b.Fatalf("Unexpected error: %v", err)
 		}

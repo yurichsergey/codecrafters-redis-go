@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/codecrafters-io/redis-starter-go/app/parser"
 	"github.com/codecrafters-io/redis-starter-go/app/processor"
 )
 
@@ -22,7 +23,7 @@ func handleConnection(proc *processor.Processor, conn net.Conn) {
 			fmt.Println("Error reading from connection:", err)
 			return
 		}
-		inputStrings, err := parseString(string(buf[:n]))
+		inputStrings, err := parser.ParseString(string(buf[:n]))
 		if err != nil {
 			fmt.Println("Error parsing string: ", err)
 			return
