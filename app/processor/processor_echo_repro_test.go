@@ -1,11 +1,11 @@
-package main
+package processor
 
-import "github.com/codecrafters-io/redis-starter-go/app/processor"
-
-import "testing"
+import (
+	"testing"
+)
 
 func TestEchoRepro(t *testing.T) {
-	processor := processor.NewProcessor()
+	processor := NewProcessor()
 	input := []string{"ECHO", "mango"}
 	expected := "$5\r\nmango\r\n"
 	result := processor.ProcessCommand(input)
