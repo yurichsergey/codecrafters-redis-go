@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
 // commandEcho returns the message passed to it.
@@ -17,7 +18,7 @@ func (p *Processor) commandEcho(strings []string) string {
 			content += " " + s
 		}
 	}
-	return fmt.Sprintf("$%d\r\n%s\r\n", len(content), content)
+	return resp.MakeBulkString(content)
 }
 
 // commandSet sets the string value of a key.
@@ -25,7 +26,7 @@ func (p *Processor) commandEcho(strings []string) string {
 func (p *Processor) commandSet(row []string) string {
 	// SET command requires at least a key and a value
 	if len(row) < 3 {
-		return "-ERR wrong number of arguments for 'set' command\r\n"
+		return resp.MakeError("ERR wrong number of arguments for 'set' command")
 	}
 
 	key := row[1]
@@ -38,12 +39,12 @@ func (p *Processor) commandSet(row []string) string {
 		expiryType = strings.ToUpper(row[3])
 		value, err := strconv.ParseInt(row[4], 10, 64)
 		if err != nil {
-			return "-ERR value is not an integer or out of range\r\n"
+			return resp.MakeError("ERR value is not an integer or out of range")
 		}
 		expiryValue = value
 
 		if expiryType != "EX" && expiryType != "PX" {
-			return "-ERR syntax error\r\n"
+			return resp.MakeError("ERR syntax error")
 		}
 
 		if expiryType == "EX" {
@@ -63,7 +64,7 @@ func (p *Processor) commandSet(row []string) string {
 	}
 
 	// Return OK as a RESP simple string
-	return "+OK\r\n"
+	return resp.MakeSimpleString("OK")
 }
 
 // commandGet gets the value of a key.
@@ -71,7 +72,7 @@ func (p *Processor) commandSet(row []string) string {
 func (p *Processor) commandGet(row []string) string {
 	// GET command requires a key argument
 	if len(row) < 2 {
-		return "-ERR wrong number of arguments for 'get' command\r\n"
+		return resp.MakeError("ERR wrong number of arguments for 'get' command")
 	}
 
 	key := row[1]
@@ -80,15 +81,15 @@ func (p *Processor) commandGet(row []string) string {
 	item, exists := p.storage[key]
 	if !exists {
 		// Return null bulk string if the key doesn't exist
-		return "$-1\r\n"
+		return resp.MakeNullBulkString()
 	}
 
 	if item.expiry != 0 && time.Now().UnixMilli() > item.expiry {
 		//delete(p.storage, key)
-		return "$-1\r\n"
+		return resp.MakeNullBulkString()
 	}
 
 	// Return the value as a RESP bulk string
 	// Format: $<length>\r\n<data>\r\n
-	return fmt.Sprintf("$%d\r\n%s\r\n", len(item.value), item.value)
+	return resp.MakeBulkString(item.value)
 }

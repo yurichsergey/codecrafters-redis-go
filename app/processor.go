@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"sync"
+
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
 type StorageItem struct {
@@ -49,14 +51,14 @@ func (p *Processor) ProcessCommand(row []string) string {
 	var response string
 	response = ""
 	if len(row) == 0 {
-		response = "$-1\r\n"
+		response = resp.MakeNullBulkString()
 		return response
 	}
 
 	command := strings.ToUpper(row[0])
 	switch command {
 	case "PING":
-		response = "+PONG\r\n"
+		response = resp.MakeSimpleString("PONG")
 	case "ECHO":
 		response = p.commandEcho(row)
 	case "SET":
@@ -76,7 +78,7 @@ func (p *Processor) ProcessCommand(row []string) string {
 	case "BLPOP":
 		response = p.handleBLPop(row)
 	default:
-		response = "+PONG\r\n"
+		response = resp.MakeSimpleString("PONG")
 	}
 	return response
 }

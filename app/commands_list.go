@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"strconv"
-	"strings"
 	"time"
+
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
 // handleRPush appends one or more elements to the end of a list.
@@ -12,7 +12,7 @@ import (
 func (p *Processor) handleRPush(row []string) string {
 	// Check if there are enough arguments
 	if len(row) < 3 {
-		return "-ERR wrong number of arguments for 'rpush' command\r\n"
+		return resp.MakeError("ERR wrong number of arguments for 'rpush' command")
 	}
 
 	key := row[1]
@@ -48,7 +48,7 @@ func (p *Processor) handleRPush(row []string) string {
 		}
 	}
 
-	return fmt.Sprintf(":%d\r\n", newLength)
+	return resp.MakeInteger(newLength)
 }
 
 // handleLRange returns the specified elements of the list stored at key.
@@ -56,7 +56,7 @@ func (p *Processor) handleRPush(row []string) string {
 func (p *Processor) handleLRange(row []string) string {
 	// Check if there are enough arguments
 	if len(row) != 4 {
-		return "-ERR wrong number of arguments for 'lrange' command\r\n"
+		return resp.MakeError("ERR wrong number of arguments for 'lrange' command")
 	}
 
 	key := row[1]
@@ -66,20 +66,20 @@ func (p *Processor) handleLRange(row []string) string {
 	// Parse start index with negative index support
 	start, err := strconv.Atoi(startStr)
 	if err != nil {
-		return "-ERR invalid start index\r\n"
+		return resp.MakeError("ERR invalid start index")
 	}
 
 	// Parse stop index with negative index support
 	stop, err := strconv.Atoi(stopStr)
 	if err != nil {
-		return "-ERR invalid stop index\r\n"
+		return resp.MakeError("ERR invalid stop index")
 	}
 
 	// Retrieve the list
 	list, exists := p.storageList[key]
 	if !exists {
 		// If list doesn't exist, return an empty array
-		return "*0\r\n"
+		return resp.MakeEmptyArray()
 	}
 
 	// Calculate the length of the list
@@ -110,25 +110,19 @@ func (p *Processor) handleLRange(row []string) string {
 
 	// Check if start index is out of bounds
 	if start >= listLength {
-		return "*0\r\n"
+		return resp.MakeEmptyArray()
 	}
 
 	// Check if start index is greater than stop index
 	if start > stop {
-		return "*0\r\n"
+		return resp.MakeEmptyArray()
 	}
 
 	// Extract the sublist
 	subList := list[start : stop+1]
 
 	// Construct the RESP array response
-	var response string
-	response = fmt.Sprintf("*%d\r\n", len(subList))
-	for _, item := range subList {
-		response += fmt.Sprintf("$%d\r\n%s\r\n", len(item), item)
-	}
-
-	return response
+	return resp.MakeArray(subList)
 }
 
 // handleLPush inserts one or more elements at the head of a list.
@@ -136,7 +130,7 @@ func (p *Processor) handleLRange(row []string) string {
 func (p *Processor) handleLPush(row []string) string {
 	// Check if there are enough arguments
 	if len(row) < 3 {
-		return "-ERR wrong number of arguments for 'lpush' command\r\n"
+		return resp.MakeError("ERR wrong number of arguments for 'lpush' command")
 	}
 
 	key := row[1]
@@ -148,7 +142,7 @@ func (p *Processor) handleLPush(row []string) string {
 	}
 	p.storageList[key] = append(elements, p.storageList[key]...)
 
-	return fmt.Sprintf(":%d\r\n", len(p.storageList[key]))
+	return resp.MakeInteger(len(p.storageList[key]))
 }
 
 // handleLLen returns the length of the list stored at key.
@@ -156,7 +150,7 @@ func (p *Processor) handleLPush(row []string) string {
 func (p *Processor) handleLLen(row []string) string {
 	// Check if there are enough arguments
 	if len(row) != 2 {
-		return "-ERR wrong number of arguments for 'llen' command\r\n"
+		return resp.MakeError("ERR wrong number of arguments for 'llen' command")
 	}
 
 	key := row[1]
@@ -165,18 +159,18 @@ func (p *Processor) handleLLen(row []string) string {
 	list, exists := p.storageList[key]
 	if !exists {
 		// If list doesn't exist, return 0
-		return ":0\r\n"
+		return resp.MakeInteger(0)
 	}
 
 	// Return the length of the list as a RESP integer
-	return fmt.Sprintf(":%d\r\n", len(list))
+	return resp.MakeInteger(len(list))
 }
 
 // handleLPop removes and returns the first elements of the list stored at key.
 // Example: LPOP mylist
 func (p *Processor) handleLPop(row []string) string {
 	if len(row) < 2 {
-		return "-ERR wrong number of arguments for 'lpop' command\r\n"
+		return resp.MakeError("ERR wrong number of arguments for 'lpop' command")
 	}
 
 	key := row[1]
@@ -189,14 +183,14 @@ func (p *Processor) handleLPop(row []string) string {
 		var err error
 		count, err = strconv.Atoi(row[2])
 		if err != nil || count < 0 {
-			return "-ERR value is not an integer or out of range\r\n"
+			return resp.MakeError("ERR value is not an integer or out of range")
 		}
 	}
 
 	// Check if list exists
 	list, exists := p.storageList[key]
 	if !exists || len(list) == 0 {
-		return "$-1\r\n"
+		return resp.MakeNullBulkString()
 	}
 
 	// Determine how many elements to actually remove
@@ -215,7 +209,7 @@ func (p *Processor) handleLPop(row []string) string {
 			delete(p.storageList, key)
 		}
 
-		return fmt.Sprintf("$%d\r\n%s\r\n", len(removed), removed)
+		return resp.MakeBulkString(removed)
 	}
 
 	// Remove elements from the front
@@ -228,13 +222,7 @@ func (p *Processor) handleLPop(row []string) string {
 	}
 
 	// Return as RESP array
-	var response strings.Builder
-	response.WriteString(fmt.Sprintf("*%d\r\n", len(removed)))
-	for _, elem := range removed {
-		response.WriteString(fmt.Sprintf("$%d\r\n%s\r\n", len(elem), elem))
-	}
-
-	return response.String()
+	return resp.MakeArray(removed)
 }
 
 // handleBLPop removes and returns the first element of the list stored at key,
@@ -243,14 +231,14 @@ func (p *Processor) handleLPop(row []string) string {
 func (p *Processor) handleBLPop(row []string) string {
 	// Check if there are enough arguments
 	if len(row) < 3 {
-		return "-ERR wrong number of arguments for 'blpop' command\r\n"
+		return resp.MakeError("ERR wrong number of arguments for 'blpop' command")
 	}
 
 	// Parse timeout as float
 	timeoutStr := row[len(row)-1]
 	timeoutSeconds, err := strconv.ParseFloat(timeoutStr, 64)
 	if err != nil || timeoutSeconds < 0 {
-		return "-ERR timeout is not a float or out of range\r\n"
+		return resp.MakeError("ERR timeout is not a float or out of range")
 	}
 
 	// Get the keys
@@ -270,8 +258,7 @@ func (p *Processor) handleBLPop(row []string) string {
 			}
 
 			// Return the key and element as a RESP array
-			return fmt.Sprintf("*2\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",
-				len(key), key, len(element), element)
+			return resp.MakeArray([]string{key, element})
 		}
 	}
 
@@ -322,11 +309,10 @@ func (p *Processor) handleBLPop(row []string) string {
 			// Element received
 		case <-timer.C:
 			// Timeout expired
-			return "*-1\r\n"
+			return resp.MakeNullArray()
 		}
 	}
 
 	// Return the key and element
-	return fmt.Sprintf("*2\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",
-		len(result.key), result.key, len(result.value), result.value)
+	return resp.MakeArray([]string{result.key, result.value})
 }
