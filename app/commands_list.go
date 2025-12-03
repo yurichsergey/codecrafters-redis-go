@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // handleRPush appends one or more elements to the end of a list.
@@ -245,10 +246,11 @@ func (p *Processor) handleBLPop(row []string) string {
 		return "-ERR wrong number of arguments for 'blpop' command\r\n"
 	}
 
-	// Currently only support timeout of 0
-	timeout, err := strconv.Atoi(row[len(row)-1])
-	if err != nil || timeout != 0 {
-		return "-ERR only timeout of 0 is currently supported\r\n"
+	// Parse timeout as float
+	timeoutStr := row[len(row)-1]
+	timeoutSeconds, err := strconv.ParseFloat(timeoutStr, 64)
+	if err != nil || timeoutSeconds < 0 {
+		return "-ERR timeout is not a float or out of range\r\n"
 	}
 
 	// Get the keys
@@ -284,8 +286,45 @@ func (p *Processor) handleBLPop(row []string) string {
 	}
 	p.clientsMutex.Unlock()
 
-	// Block until an element is available
-	result := <-blockingClient.waiting
+	// Define a cleanup function to remove the client from all keys
+	cleanup := func() {
+		p.clientsMutex.Lock()
+		defer p.clientsMutex.Unlock()
+		for _, key := range keys {
+			clients := p.blockingClients[key]
+			for i, client := range clients {
+				if client == blockingClient {
+					// Remove the client
+					p.blockingClients[key] = append(clients[:i], clients[i+1:]...)
+					break
+				}
+			}
+			// Clean up empty client lists
+			if len(p.blockingClients[key]) == 0 {
+				delete(p.blockingClients, key)
+			}
+		}
+	}
+	defer cleanup()
+
+	// Block until an element is available or timeout expires
+	var result BlockingResult
+	if timeoutSeconds == 0 {
+		// Indefinite blocking
+		result = <-blockingClient.waiting
+	} else {
+		// Blocking with timeout
+		timer := time.NewTimer(time.Duration(timeoutSeconds * float64(time.Second)))
+		defer timer.Stop()
+
+		select {
+		case result = <-blockingClient.waiting:
+			// Element received
+		case <-timer.C:
+			// Timeout expired
+			return "*-1\r\n"
+		}
+	}
 
 	// Return the key and element
 	return fmt.Sprintf("*2\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",

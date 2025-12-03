@@ -14,11 +14,7 @@ func TestBLPOPBasicFunctionality(t *testing.T) {
 		expected string
 	}{
 		// Removed "BLPOP on empty list" case as it blocks indefinitely in this synchronous test runner
-		{
-			name:     "BLPOP with non-zero timeout (currently unsupported)",
-			input:    []string{"BLPOP", "list_key", "10"},
-			expected: "-ERR only timeout of 0 is currently supported\r\n",
-		},
+
 		{
 			name:     "BLPOP without enough arguments",
 			input:    []string{"BLPOP", "list_key"},
