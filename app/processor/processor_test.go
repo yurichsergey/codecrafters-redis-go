@@ -1,9 +1,7 @@
-package main
+package processor
 
 import (
 	"testing"
-
-	"github.com/codecrafters-io/redis-starter-go/app/processor"
 )
 
 func TestDefineResponse(t *testing.T) {
@@ -64,7 +62,7 @@ func TestDefineResponse(t *testing.T) {
 		},
 	}
 
-	processor := processor.NewProcessor()
+	processor := NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -76,7 +74,7 @@ func TestDefineResponse(t *testing.T) {
 }
 
 func TestDefineResponseEdgeCases(t *testing.T) {
-	processor := processor.NewProcessor()
+	processor := NewProcessor()
 
 	// Test with nil slice
 	result := processor.ProcessCommand(nil)
