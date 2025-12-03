@@ -1,9 +1,11 @@
-package list
+package list_test
 
 import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/codecrafters-io/redis-starter-go/app/processor"
 )
 
 func TestRPushCommand(t *testing.T) {
@@ -44,7 +46,7 @@ func TestRPushCommand(t *testing.T) {
 		},
 	}
 
-	processor := NewTestProcessor()
+	processor := processor.NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -119,7 +121,7 @@ func TestLRangeCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Run setup commands
 			for _, setupCmd := range tt.setup {
@@ -163,7 +165,7 @@ func TestLRangeCommandErrors(t *testing.T) {
 		},
 	}
 
-	processor := NewTestProcessor()
+	processor := processor.NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -192,7 +194,7 @@ func TestLRangeCaseInsensitivity(t *testing.T) {
 		},
 	}
 
-	processor := NewTestProcessor()
+	processor := processor.NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -223,7 +225,7 @@ func BenchmarkLRangeCommand(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Setup the list for benchmarking
 			processor.ProcessCommand(tc.setup)
@@ -289,7 +291,7 @@ func TestLRangeCommandNegativeIndexes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Run setup commands
 			for _, setupCmd := range tt.setup {
@@ -365,7 +367,7 @@ func TestLPushCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Run setup commands
 			for _, setupCmd := range tt.setup {
@@ -411,7 +413,7 @@ func TestLPushCommandErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 			result := processor.ProcessCommand(tt.input)
 			if result != tt.expected {
 				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
@@ -440,7 +442,7 @@ func TestLPushCaseInsensitivity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 			result := processor.ProcessCommand(tt.input)
 			if result != tt.expected {
 				t.Errorf("ProcessCommand(%v) = %q, want %q", tt.input, result, tt.expected)
@@ -470,7 +472,7 @@ func BenchmarkLPushCommand(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -538,7 +540,7 @@ func TestLLenCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Run setup commands
 			for _, setupCmd := range tt.setup {
@@ -592,7 +594,7 @@ func TestLPopCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Run setup commands
 			for _, setupCmd := range tt.setup {
@@ -636,7 +638,7 @@ func TestLPopCommandErrors(t *testing.T) {
 		},
 	}
 
-	processor := NewTestProcessor()
+	processor := processor.NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -670,7 +672,7 @@ func TestLPopCaseInsensitivity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Run setup commands
 			for _, setupCmd := range tt.setup {
@@ -706,7 +708,7 @@ func BenchmarkLPopCommand(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Setup the list for benchmarking
 			processor.ProcessCommand(tc.setup)

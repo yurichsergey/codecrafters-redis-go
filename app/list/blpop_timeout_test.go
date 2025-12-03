@@ -1,13 +1,15 @@
-package list
+package list_test
 
 import (
 	"testing"
 	"time"
+
+	"github.com/codecrafters-io/redis-starter-go/app/processor"
 )
 
 func TestBLPOPTimeout(t *testing.T) {
 	t.Run("BLPOP times out", func(t *testing.T) {
-		processor := NewTestProcessor()
+		processor := processor.NewProcessor()
 
 		start := time.Now()
 		result := processor.ProcessCommand([]string{"BLPOP", "timeout_list", "0.1"})
@@ -24,7 +26,7 @@ func TestBLPOPTimeout(t *testing.T) {
 	})
 
 	t.Run("BLPOP returns element before timeout", func(t *testing.T) {
-		processor := NewTestProcessor()
+		processor := processor.NewProcessor()
 
 		resultChan := make(chan string, 1)
 
@@ -48,7 +50,7 @@ func TestBLPOPTimeout(t *testing.T) {
 
 	// Commented out: This test accesses internal fields that are now encapsulated
 	// t.Run("BLPOP cleanup verification", func(t *testing.T) {
-	// 	processor := NewTestProcessor()
+	// 	processor := processor.NewProcessor()
 	//
 	// 	// Start a BLPOP that will timeout
 	// 	done := make(chan bool)

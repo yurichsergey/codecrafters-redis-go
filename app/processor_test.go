@@ -1,5 +1,7 @@
 package main
 
+import "github.com/codecrafters-io/redis-starter-go/app/processor"
+
 import (
 	"testing"
 	"time"
@@ -63,7 +65,7 @@ func TestDefineResponse(t *testing.T) {
 		},
 	}
 
-	processor := NewProcessor()
+	processor := processor.NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -75,7 +77,7 @@ func TestDefineResponse(t *testing.T) {
 }
 
 func TestDefineResponseEdgeCases(t *testing.T) {
-	processor := NewProcessor()
+	processor := processor.NewProcessor()
 
 	// Test with nil slice
 	result := processor.ProcessCommand(nil)
@@ -151,7 +153,7 @@ func TestSetCommand(t *testing.T) {
 		},
 	}
 
-	processor := NewProcessor()
+	processor := processor.NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -227,7 +229,7 @@ func TestGetCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewProcessor()
+			processor := processor.NewProcessor()
 
 			// Run setup commands
 			for _, setupCmd := range tt.setup {
@@ -244,7 +246,7 @@ func TestGetCommand(t *testing.T) {
 }
 
 func TestSetGetIntegration(t *testing.T) {
-	processor := NewProcessor()
+	processor := processor.NewProcessor()
 
 	t.Run("SET and GET same key", func(t *testing.T) {
 		// Set a value
@@ -317,7 +319,7 @@ func BenchmarkDefineResponse(b *testing.B) {
 		{"GET existing", []string{"GET", "key"}},
 	}
 
-	processor := NewProcessor()
+	processor := processor.NewProcessor()
 	// Setup for GET benchmark
 	processor.ProcessCommand([]string{"SET", "key", "value"})
 
@@ -388,7 +390,7 @@ func TestSetCommandWithExpiry(t *testing.T) {
 		},
 	}
 
-	processor := NewProcessor()
+	processor := processor.NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -401,7 +403,7 @@ func TestSetCommandWithExpiry(t *testing.T) {
 
 func TestGetCommandWithExpiry(t *testing.T) {
 	t.Run("GET key before EX expiry", func(t *testing.T) {
-		processor := NewProcessor()
+		processor := processor.NewProcessor()
 
 		// SET with 2 second expiry
 		processor.ProcessCommand([]string{"SET", "tempkey", "tempvalue", "EX", "2"})
@@ -415,7 +417,7 @@ func TestGetCommandWithExpiry(t *testing.T) {
 	})
 
 	t.Run("GET key after EX expiry", func(t *testing.T) {
-		processor := NewProcessor()
+		processor := processor.NewProcessor()
 
 		// SET with the 1 millisecond expiry using PX
 		processor.ProcessCommand([]string{"SET", "tempkey", "tempvalue", "PX", "1"})
@@ -432,7 +434,7 @@ func TestGetCommandWithExpiry(t *testing.T) {
 	})
 
 	t.Run("GET key before PX expiry", func(t *testing.T) {
-		processor := NewProcessor()
+		processor := processor.NewProcessor()
 
 		// SET with 1000ms (1 second) expiry
 		processor.ProcessCommand([]string{"SET", "pxkey", "pxvalue", "PX", "1000"})
@@ -446,7 +448,7 @@ func TestGetCommandWithExpiry(t *testing.T) {
 	})
 
 	t.Run("GET key after PX expiry", func(t *testing.T) {
-		processor := NewProcessor()
+		processor := processor.NewProcessor()
 
 		// SET with 50 millisecond expiry
 		processor.ProcessCommand([]string{"SET", "pxkey", "pxvalue", "PX", "50"})
@@ -463,7 +465,7 @@ func TestGetCommandWithExpiry(t *testing.T) {
 	})
 
 	t.Run("SET without expiry does not expire", func(t *testing.T) {
-		processor := NewProcessor()
+		processor := processor.NewProcessor()
 
 		// SET without expiry
 		processor.ProcessCommand([]string{"SET", "noexpiry", "persistent"})
@@ -480,7 +482,7 @@ func TestGetCommandWithExpiry(t *testing.T) {
 	})
 
 	t.Run("Overwrite key with new expiry", func(t *testing.T) {
-		processor := NewProcessor()
+		processor := processor.NewProcessor()
 
 		// SET with short expiry
 		processor.ProcessCommand([]string{"SET", "overwrite", "oldvalue", "PX", "50"})
@@ -568,7 +570,7 @@ func TestCaseInsensitiveCommands(t *testing.T) {
 		},
 	}
 
-	processor := NewProcessor()
+	processor := processor.NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -580,7 +582,7 @@ func TestCaseInsensitiveCommands(t *testing.T) {
 }
 
 func TestCaseInsensitiveSetGetIntegration(t *testing.T) {
-	processor := NewProcessor()
+	processor := processor.NewProcessor()
 
 	t.Run("SET lowercase, GET uppercase", func(t *testing.T) {
 		processor.ProcessCommand([]string{"set", "testkey", "testvalue"})

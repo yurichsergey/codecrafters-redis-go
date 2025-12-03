@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+
+	"github.com/codecrafters-io/redis-starter-go/app/processor"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
@@ -19,7 +21,7 @@ func main() {
 		fmt.Println("Failed to bind to port 6379")
 		os.Exit(1)
 	}
-	processor := NewProcessor()
+	proc := processor.NewProcessor()
 
 	for {
 		conn, err := l.Accept()
@@ -28,6 +30,6 @@ func main() {
 			os.Exit(1)
 		}
 
-		go handleConnection(processor, conn)
+		go handleConnection(proc, conn)
 	}
 }

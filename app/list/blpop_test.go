@@ -1,9 +1,11 @@
-package list
+package list_test
 
 import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/codecrafters-io/redis-starter-go/app/processor"
 )
 
 func TestBLPOPBasicFunctionality(t *testing.T) {
@@ -22,7 +24,7 @@ func TestBLPOPBasicFunctionality(t *testing.T) {
 		},
 	}
 
-	processor := NewTestProcessor()
+	processor := processor.NewProcessor()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := processor.ProcessCommand(tt.input)
@@ -35,7 +37,7 @@ func TestBLPOPBasicFunctionality(t *testing.T) {
 
 func TestBLPOPBlockingBehavior(t *testing.T) {
 	t.Run("BLPOP blocks and receives element when pushed", func(t *testing.T) {
-		processor := NewTestProcessor()
+		processor := processor.NewProcessor()
 
 		// Use a WaitGroup to synchronize goroutines
 		var wg sync.WaitGroup
@@ -74,7 +76,7 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 	})
 
 	t.Run("BLPOP with multiple blocking clients", func(t *testing.T) {
-		processor := NewTestProcessor()
+		processor := processor.NewProcessor()
 
 		var wg sync.WaitGroup
 		wg.Add(2) // Wait for Client 1 and RPUSH
@@ -136,7 +138,7 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 	})
 
 	t.Run("BLPOP wakes up multiple clients with multiple elements", func(t *testing.T) {
-		processor := NewTestProcessor()
+		processor := processor.NewProcessor()
 
 		var wg sync.WaitGroup
 		wg.Add(2)
@@ -179,7 +181,7 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 
 func TestBLPOPMultipleLists(t *testing.T) {
 	t.Run("BLPOP with multiple lists", func(t *testing.T) {
-		processor := NewTestProcessor()
+		processor := processor.NewProcessor()
 
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -236,7 +238,7 @@ func TestBLPOPCaseInsensitivity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Result channel
 			resultChan := make(chan string, 1)
@@ -280,7 +282,7 @@ func BenchmarkBLPOPCommand(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			processor := NewTestProcessor()
+			processor := processor.NewProcessor()
 
 			// Setup the list for benchmarking
 			processor.ProcessCommand(tc.setup)
@@ -296,7 +298,7 @@ func BenchmarkBLPOPCommand(b *testing.B) {
 
 func TestRPushReturnValueWithBlockedClients(t *testing.T) {
 	t.Run("RPUSH returns correct length when client is blocked", func(t *testing.T) {
-		processor := NewTestProcessor()
+		processor := processor.NewProcessor()
 
 		var wg sync.WaitGroup
 		wg.Add(1)

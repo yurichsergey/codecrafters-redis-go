@@ -1,4 +1,4 @@
-package main
+package processor
 
 import (
 	"strconv"
@@ -8,9 +8,9 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
-// commandEcho returns the message passed to it.
+// CommandEcho returns the message passed to it.
 // Example: ECHO "Hello World"
-func (p *Processor) commandEcho(strings []string) string {
+func (p *Processor) CommandEcho(strings []string) string {
 	var content string
 	if len(strings) > 1 {
 		content += strings[1:][0]
@@ -21,9 +21,9 @@ func (p *Processor) commandEcho(strings []string) string {
 	return resp.MakeBulkString(content)
 }
 
-// commandSet sets the string value of a key.
+// CommandSet sets the string value of a key.
 // Example: SET mykey "Hello"
-func (p *Processor) commandSet(row []string) string {
+func (p *Processor) CommandSet(row []string) string {
 	// SET command requires at least a key and a value
 	if len(row) < 3 {
 		return resp.MakeError("ERR wrong number of arguments for 'set' command")
@@ -58,18 +58,18 @@ func (p *Processor) commandSet(row []string) string {
 	if expiryValue != 0 {
 		expiryMilliseconds = time.Now().UnixMilli() + expiryValue
 	}
-	p.storage[key] = &StorageItem{
-		value:  value,
-		expiry: expiryMilliseconds,
+	p.Storage[key] = &StorageItem{
+		Value:  value,
+		Expiry: expiryMilliseconds,
 	}
 
 	// Return OK as a RESP simple string
 	return resp.MakeSimpleString("OK")
 }
 
-// commandGet gets the value of a key.
+// CommandGet gets the value of a key.
 // Example: GET mykey
-func (p *Processor) commandGet(row []string) string {
+func (p *Processor) CommandGet(row []string) string {
 	// GET command requires a key argument
 	if len(row) < 2 {
 		return resp.MakeError("ERR wrong number of arguments for 'get' command")
@@ -78,18 +78,18 @@ func (p *Processor) commandGet(row []string) string {
 	key := row[1]
 
 	// Check if the key exists in storage
-	item, exists := p.storage[key]
+	item, exists := p.Storage[key]
 	if !exists {
 		// Return null bulk string if the key doesn't exist
 		return resp.MakeNullBulkString()
 	}
 
-	if item.expiry != 0 && time.Now().UnixMilli() > item.expiry {
+	if item.Expiry != 0 && time.Now().UnixMilli() > item.Expiry {
 		//delete(p.storage, key)
 		return resp.MakeNullBulkString()
 	}
 
 	// Return the value as a RESP bulk string
 	// Format: $<length>\r\n<data>\r\n
-	return resp.MakeBulkString(item.value)
+	return resp.MakeBulkString(item.Value)
 }

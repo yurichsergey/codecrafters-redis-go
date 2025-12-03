@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"net"
+
+	"github.com/codecrafters-io/redis-starter-go/app/processor"
 )
 
-func handleConnection(processor *Processor, conn net.Conn) {
+func handleConnection(proc *processor.Processor, conn net.Conn) {
 	defer func(conn net.Conn) {
 		err := conn.Close()
 		if err != nil {
@@ -29,7 +31,7 @@ func handleConnection(processor *Processor, conn net.Conn) {
 		fmt.Printf("We got: %s\n", inputStrings)
 
 		if n > 0 {
-			response := processor.ProcessCommand(inputStrings)
+			response := proc.ProcessCommand(inputStrings)
 
 			write, err := conn.Write([]byte(response))
 			if err != nil {

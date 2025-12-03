@@ -1,11 +1,13 @@
-package list
+package list_test
 
 import (
 	"testing"
+
+	"github.com/codecrafters-io/redis-starter-go/app/processor"
 )
 
 func TestLPopSingleElement(t *testing.T) {
-	p := NewTestProcessor()
+	p := processor.NewProcessor()
 
 	// Setup: Create a list with multiple elements
 	response := p.ProcessCommand([]string{"RPUSH", "list_key", "one", "two", "three"})
@@ -30,7 +32,7 @@ func TestLPopSingleElement(t *testing.T) {
 }
 
 func TestLPopMultipleElements(t *testing.T) {
-	p := NewTestProcessor()
+	p := processor.NewProcessor()
 
 	// Setup: Create a list
 	p.ProcessCommand([]string{"RPUSH", "list_key", "a", "b", "c", "d"})
@@ -51,7 +53,7 @@ func TestLPopMultipleElements(t *testing.T) {
 }
 
 func TestLPopCountGreaterThanLength(t *testing.T) {
-	p := NewTestProcessor()
+	p := processor.NewProcessor()
 
 	// Setup: Create a list with 3 elements
 	p.ProcessCommand([]string{"RPUSH", "list_key", "one", "two", "three"})
@@ -72,7 +74,7 @@ func TestLPopCountGreaterThanLength(t *testing.T) {
 }
 
 func TestLPopEmptyList(t *testing.T) {
-	p := NewTestProcessor()
+	p := processor.NewProcessor()
 
 	// Test: LPOP on non-existent list
 	response := p.ProcessCommand([]string{"LPOP", "non_existent"})
@@ -89,7 +91,7 @@ func TestLPopEmptyList(t *testing.T) {
 }
 
 func TestLPopCountOne(t *testing.T) {
-	p := NewTestProcessor()
+	p := processor.NewProcessor()
 
 	// Setup
 	p.ProcessCommand([]string{"RPUSH", "list_key", "alpha", "beta", "gamma"})
@@ -110,7 +112,7 @@ func TestLPopCountOne(t *testing.T) {
 }
 
 func TestLPopAllElements(t *testing.T) {
-	p := NewTestProcessor()
+	p := processor.NewProcessor()
 
 	// Setup
 	p.ProcessCommand([]string{"RPUSH", "list_key", "one", "two", "three", "four", "five"})
@@ -131,7 +133,7 @@ func TestLPopAllElements(t *testing.T) {
 }
 
 func TestLPopInvalidCount(t *testing.T) {
-	p := NewTestProcessor()
+	p := processor.NewProcessor()
 
 	// Setup
 	p.ProcessCommand([]string{"RPUSH", "list_key", "a", "b", "c"})
@@ -150,7 +152,7 @@ func TestLPopInvalidCount(t *testing.T) {
 }
 
 func TestLPopSequentialOperations(t *testing.T) {
-	p := NewTestProcessor()
+	p := processor.NewProcessor()
 
 	// Setup
 	p.ProcessCommand([]string{"RPUSH", "list_key", "1", "2", "3", "4", "5", "6"})
@@ -185,7 +187,7 @@ func TestLPopSequentialOperations(t *testing.T) {
 }
 
 func TestLPopZeroCount(t *testing.T) {
-	p := NewTestProcessor()
+	p := processor.NewProcessor()
 
 	// Setup
 	p.ProcessCommand([]string{"RPUSH", "list_key", "a", "b", "c"})

@@ -1,4 +1,4 @@
-package main
+package processor
 
 import (
 	"strings"
@@ -9,23 +9,23 @@ import (
 
 type StorageItem struct {
 	// value is the string value stored in the item
-	value string
+	Value string
 	// expiry is the expiration time in milliseconds
-	expiry int64
+	Expiry int64
 }
 
 type Processor struct {
 	// storage holds the key-value pairs for string commands
-	storage map[string]*StorageItem
+	Storage map[string]*StorageItem
 	// listStore handles list-related commands
-	listStore *list.Store
+	ListStore *list.Store
 }
 
 // NewProcessor creates a new Processor instance with initialized storage and blocking clients.
 func NewProcessor() *Processor {
 	return &Processor{
-		storage:   make(map[string]*StorageItem),
-		listStore: list.NewStore(),
+		Storage:   make(map[string]*StorageItem),
+		ListStore: list.NewStore(),
 	}
 }
 
@@ -43,23 +43,23 @@ func (p *Processor) ProcessCommand(row []string) string {
 	case "PING":
 		response = resp.MakeSimpleString("PONG")
 	case "ECHO":
-		response = p.commandEcho(row)
+		response = p.CommandEcho(row)
 	case "SET":
-		response = p.commandSet(row)
+		response = p.CommandSet(row)
 	case "GET":
-		response = p.commandGet(row)
+		response = p.CommandGet(row)
 	case "RPUSH":
-		response = p.listStore.RPush(row)
+		response = p.ListStore.RPush(row)
 	case "LRANGE":
-		response = p.listStore.LRange(row)
+		response = p.ListStore.LRange(row)
 	case "LPUSH":
-		response = p.listStore.LPush(row)
+		response = p.ListStore.LPush(row)
 	case "LLEN":
-		response = p.listStore.LLen(row)
+		response = p.ListStore.LLen(row)
 	case "LPOP":
-		response = p.listStore.LPop(row)
+		response = p.ListStore.LPop(row)
 	case "BLPOP":
-		response = p.listStore.BLPop(row)
+		response = p.ListStore.BLPop(row)
 	default:
 		response = resp.MakeSimpleString("PONG")
 	}
