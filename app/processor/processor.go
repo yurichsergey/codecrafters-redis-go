@@ -5,18 +5,12 @@ import (
 
 	"github.com/codecrafters-io/redis-starter-go/app/list"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
+	"github.com/codecrafters-io/redis-starter-go/app/string_commands"
 )
 
-type StorageItem struct {
-	// value is the string value stored in the item
-	Value string
-	// expiry is the expiration time in milliseconds
-	Expiry int64
-}
-
 type Processor struct {
-	// storage holds the key-value pairs for string commands
-	Storage map[string]*StorageItem
+	// StringStore handles string-related commands
+	StringStore *string_commands.Store
 	// listStore handles list-related commands
 	ListStore *list.Store
 }
@@ -24,8 +18,8 @@ type Processor struct {
 // NewProcessor creates a new Processor instance with initialized storage and blocking clients.
 func NewProcessor() *Processor {
 	return &Processor{
-		Storage:   make(map[string]*StorageItem),
-		ListStore: list.NewStore(),
+		StringStore: string_commands.NewStore(),
+		ListStore:   list.NewStore(),
 	}
 }
 
@@ -43,11 +37,11 @@ func (p *Processor) ProcessCommand(row []string) string {
 	case "PING":
 		response = resp.MakeSimpleString("PONG")
 	case "ECHO":
-		response = p.CommandEcho(row)
+		response = p.StringStore.Echo(row)
 	case "SET":
-		response = p.CommandSet(row)
+		response = p.StringStore.Set(row)
 	case "GET":
-		response = p.CommandGet(row)
+		response = p.StringStore.Get(row)
 	case "RPUSH":
 		response = p.ListStore.RPush(row)
 	case "LRANGE":
