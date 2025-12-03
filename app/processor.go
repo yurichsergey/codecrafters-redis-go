@@ -2,8 +2,8 @@ package main
 
 import (
 	"strings"
-	"sync"
 
+	"github.com/codecrafters-io/redis-starter-go/app/list"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
@@ -14,35 +14,18 @@ type StorageItem struct {
 	expiry int64
 }
 
-type BlockingResult struct {
-	// key is the list key that the client was waiting for
-	key string
-	// value is the element popped from the list
-	value string
-}
-
-type BlockingClient struct {
-	// waiting is a channel that receives the result when an element is available
-	waiting chan BlockingResult
-}
-
 type Processor struct {
 	// storage holds the key-value pairs for string commands
 	storage map[string]*StorageItem
-	// storageList holds the key-value pairs for list commands
-	storageList map[string][]string
-	// blockingClients holds the list of clients waiting for elements on specific keys
-	blockingClients map[string][]*BlockingClient
-	// clientsMutex protects access to the blockingClients map
-	clientsMutex sync.Mutex
+	// listStore handles list-related commands
+	listStore *list.Store
 }
 
 // NewProcessor creates a new Processor instance with initialized storage and blocking clients.
 func NewProcessor() *Processor {
 	return &Processor{
-		storage:         make(map[string]*StorageItem),
-		storageList:     make(map[string][]string),
-		blockingClients: make(map[string][]*BlockingClient),
+		storage:   make(map[string]*StorageItem),
+		listStore: list.NewStore(),
 	}
 }
 
@@ -66,17 +49,17 @@ func (p *Processor) ProcessCommand(row []string) string {
 	case "GET":
 		response = p.commandGet(row)
 	case "RPUSH":
-		response = p.handleRPush(row)
+		response = p.listStore.RPush(row)
 	case "LRANGE":
-		response = p.handleLRange(row)
+		response = p.listStore.LRange(row)
 	case "LPUSH":
-		response = p.handleLPush(row)
+		response = p.listStore.LPush(row)
 	case "LLEN":
-		response = p.handleLLen(row)
+		response = p.listStore.LLen(row)
 	case "LPOP":
-		response = p.handleLPop(row)
+		response = p.listStore.LPop(row)
 	case "BLPOP":
-		response = p.handleBLPop(row)
+		response = p.listStore.BLPop(row)
 	default:
 		response = resp.MakeSimpleString("PONG")
 	}
