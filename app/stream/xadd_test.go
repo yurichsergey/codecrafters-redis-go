@@ -137,3 +137,49 @@ func TestXAdd_StoresFieldsCorrectly(t *testing.T) {
 		}
 	}
 }
+
+func TestXAdd_ValidateID(t *testing.T) {
+	store := NewStore()
+
+	// Test 0-0 is invalid
+	result := store.XAdd([]string{"XADD", "stream_key", "0-0", "foo", "bar"})
+	if result != "-ERR The ID specified in XADD must be greater than 0-0\r\n" {
+		t.Errorf("Expected error for 0-0, got %q", result)
+	}
+
+	// Add valid entry
+	result = store.XAdd([]string{"XADD", "stream_key", "1-1", "foo", "bar"})
+	if result != "$3\r\n1-1\r\n" {
+		t.Errorf("Expected success for 1-1, got %q", result)
+	}
+
+	// Test equal ID
+	result = store.XAdd([]string{"XADD", "stream_key", "1-1", "bar", "baz"})
+	if result != "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n" {
+		t.Errorf("Expected error for equal ID, got %q", result)
+	}
+
+	// Test smaller time
+	result = store.XAdd([]string{"XADD", "stream_key", "0-2", "bar", "baz"})
+	if result != "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n" {
+		t.Errorf("Expected error for smaller time, got %q", result)
+	}
+
+	// Test equal time, smaller sequence
+	result = store.XAdd([]string{"XADD", "stream_key", "1-0", "bar", "baz"})
+	if result != "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n" {
+		t.Errorf("Expected error for smaller sequence, got %q", result)
+	}
+
+	// Test valid next ID (same time, larger sequence)
+	result = store.XAdd([]string{"XADD", "stream_key", "1-2", "bar", "baz"})
+	if result != "$3\r\n1-2\r\n" {
+		t.Errorf("Expected success for 1-2, got %q", result)
+	}
+
+	// Test valid next ID (larger time)
+	result = store.XAdd([]string{"XADD", "stream_key", "2-0", "bar", "baz"})
+	if result != "$3\r\n2-0\r\n" {
+		t.Errorf("Expected success for 2-0, got %q", result)
+	}
+}

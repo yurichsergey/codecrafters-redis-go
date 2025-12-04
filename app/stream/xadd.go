@@ -38,14 +38,27 @@ func (s *Store) XAdd(args []string) string {
 	defer s.mutex.Unlock()
 
 	// Create stream if it doesn't exist
-	if _, exists := s.storage[key]; !exists {
-		s.storage[key] = &Stream{
+	stream, exists := s.storage[key]
+	if !exists {
+		stream = &Stream{
 			entries: make([]*Entry, 0),
 		}
+		s.storage[key] = stream
+	}
+
+	// Get the last entry ID
+	lastID := ""
+	if len(stream.entries) > 0 {
+		lastID = stream.entries[len(stream.entries)-1].ID
+	}
+
+	// Validate the new entry ID
+	if err := ValidateID(entryID, lastID); err != nil {
+		return resp.MakeError(err.Error())
 	}
 
 	// Append entry to the stream
-	s.storage[key].entries = append(s.storage[key].entries, entry)
+	stream.entries = append(stream.entries, entry)
 
 	// Return the entry ID as a bulk string
 	return resp.MakeBulkString(entryID)
