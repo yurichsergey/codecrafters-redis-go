@@ -24,6 +24,11 @@ func (s *Store) Type(args []string) string {
 		return resp.MakeSimpleString("list")
 	}
 
+	// Check if key exists in stream storage
+	if s.StreamStore.HasKey(key) {
+		return resp.MakeSimpleString("stream")
+	}
+
 	// Key doesn't exist in any storage
 	return resp.MakeSimpleString("none")
 }

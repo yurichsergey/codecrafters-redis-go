@@ -5,6 +5,7 @@ import (
 
 	"github.com/codecrafters-io/redis-starter-go/app/list"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
+	"github.com/codecrafters-io/redis-starter-go/app/stream"
 	"github.com/codecrafters-io/redis-starter-go/app/string_commands"
 	"github.com/codecrafters-io/redis-starter-go/app/type_commands"
 )
@@ -14,6 +15,8 @@ type Processor struct {
 	StringStore *string_commands.Store
 	// listStore handles list-related commands
 	ListStore *list.Store
+	// StreamStore handles stream-related commands
+	StreamStore *stream.Store
 	// TypeStore handles type-related commands
 	TypeStore *type_commands.Store
 }
@@ -22,10 +25,12 @@ type Processor struct {
 func NewProcessor() *Processor {
 	stringStore := string_commands.NewStore()
 	listStore := list.NewStore()
+	streamStore := stream.NewStore()
 	return &Processor{
 		StringStore: stringStore,
 		ListStore:   listStore,
-		TypeStore:   type_commands.NewStore(stringStore, listStore),
+		StreamStore: streamStore,
+		TypeStore:   type_commands.NewStore(stringStore, listStore, streamStore),
 	}
 }
 
@@ -60,6 +65,8 @@ func (p *Processor) ProcessCommand(row []string) string {
 		response = p.ListStore.LPop(row)
 	case "BLPOP":
 		response = p.ListStore.BLPop(row)
+	case "XADD":
+		response = p.StreamStore.XAdd(row)
 	case "TYPE":
 		response = p.TypeStore.Type(row)
 	default:
