@@ -78,41 +78,32 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 	t.Run("BLPOP with multiple blocking clients", func(t *testing.T) {
 		processor := processor.NewProcessor()
 
-		var wg sync.WaitGroup
-		wg.Add(2) // Wait for Client 1 and RPUSH
-
 		// Result channels for multiple blocking clients
 		results := make(chan string, 2)
 
-		// First blocking client
-		go func() {
-			defer wg.Done()
-			result := processor.ProcessCommand([]string{"BLPOP", "multi_list", "0"})
-			results <- result
-		}()
+		// Start two blocking clients
+		for i := 0; i < 2; i++ {
+			go func() {
+				result := processor.ProcessCommand([]string{"BLPOP", "multi_list", "0"})
+				results <- result
+			}()
+		}
 
-		// Second blocking client (will block initially)
-		go func() {
-			// No wg.Done() here initially because it blocks
-			result := processor.ProcessCommand([]string{"BLPOP", "multi_list", "0"})
-			results <- result
-		}()
+		// Allow time for clients to block
+		time.Sleep(50 * time.Millisecond)
 
-		// RPUSH to unblock clients
-		go func() {
-			defer wg.Done()
-			time.Sleep(50 * time.Millisecond)
-			processor.ProcessCommand([]string{"RPUSH", "multi_list", "element"})
-		}()
+		// RPUSH to unblock one client
+		processor.ProcessCommand([]string{"RPUSH", "multi_list", "element"})
 
-		// Wait for Client 1 and RPUSH to complete
-		wg.Wait()
-
-		// Collect results
-		firstResult := <-results
-		expectedFirst := "*2\r\n$10\r\nmulti_list\r\n$7\r\nelement\r\n"
-		if firstResult != expectedFirst {
-			t.Errorf("First BLPOP result = %q, want %q", firstResult, expectedFirst)
+		// Collect first result
+		select {
+		case firstResult := <-results:
+			expectedFirst := "*2\r\n$10\r\nmulti_list\r\n$7\r\nelement\r\n"
+			if firstResult != expectedFirst {
+				t.Errorf("First BLPOP result = %q, want %q", firstResult, expectedFirst)
+			}
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timeout waiting for first client to be unblocked")
 		}
 
 		// Ensure the second client gets a different result or no result
