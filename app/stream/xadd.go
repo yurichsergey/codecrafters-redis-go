@@ -1,6 +1,10 @@
 package stream
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
@@ -28,12 +32,6 @@ func (s *Store) XAdd(args []string) string {
 		fields[fieldName] = fieldValue
 	}
 
-	// Create the entry
-	entry := &Entry{
-		ID:     entryID,
-		Fields: fields,
-	}
-
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -52,9 +50,29 @@ func (s *Store) XAdd(args []string) string {
 		lastID = stream.entries[len(stream.entries)-1].ID
 	}
 
+	// Handle auto-generated sequence number logic: <time>-*
+	if strings.HasSuffix(entryID, "-*") {
+		timePart := strings.TrimSuffix(entryID, "-*")
+		msTime, err := strconv.ParseInt(timePart, 10, 64)
+		if err != nil {
+			return resp.MakeError("ERR value is not an integer or out of range")
+		}
+		seqNum, err := GenerateSequence(msTime, lastID)
+		if err != nil {
+			return resp.MakeError(err.Error())
+		}
+		entryID = fmt.Sprintf("%d-%d", msTime, seqNum)
+	}
+
 	// Validate the new entry ID
 	if err := ValidateID(entryID, lastID); err != nil {
 		return resp.MakeError(err.Error())
+	}
+
+	// Create the entry
+	entry := &Entry{
+		ID:     entryID,
+		Fields: fields,
 	}
 
 	// Append entry to the stream

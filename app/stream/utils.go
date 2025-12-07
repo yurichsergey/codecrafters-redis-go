@@ -63,3 +63,30 @@ func ValidateID(id string, lastID string) error {
 
 	return nil
 }
+
+// GenerateSequence calculates the next sequence number based on the given time and the last ID in the stream.
+func GenerateSequence(msTime int64, lastID string) (int64, error) {
+	// Case 1: Stream is empty
+	if lastID == "" {
+		if msTime == 0 {
+			return 1, nil
+		}
+		return 0, nil
+	}
+
+	lastMsTime, lastSeqNum, err := ParseID(lastID)
+	if err != nil {
+		return 0, err
+	}
+
+	// Case 2: Time part is the same as the last entry
+	if msTime == lastMsTime {
+		return lastSeqNum + 1, nil
+	}
+
+	// Case 3: Time part is different (presumably newer, but validation handles older)
+	if msTime == 0 {
+		return 1, nil
+	}
+	return 0, nil
+}
