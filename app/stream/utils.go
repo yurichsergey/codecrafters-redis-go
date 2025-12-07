@@ -1,10 +1,26 @@
 package stream
 
 import (
+	"encoding/binary"
 	"errors"
 	"strconv"
 	"strings"
 )
+
+// IDToKey converts a stream ID ("1526919030474-0") into a 16-byte string
+// suitable for lexicographical comparison (BigEndian encoded).
+func IDToKey(id string) (string, error) {
+	msTime, seqNum, err := ParseID(id)
+	if err != nil {
+		return "", err
+	}
+
+	buf := make([]byte, 16)
+	binary.BigEndian.PutUint64(buf[0:8], uint64(msTime))
+	binary.BigEndian.PutUint64(buf[8:16], uint64(seqNum))
+
+	return string(buf), nil
+}
 
 // ParseID parses a stream ID string into millisecondsTime and sequenceNumber.
 // Format: <millisecondsTime>-<sequenceNumber>

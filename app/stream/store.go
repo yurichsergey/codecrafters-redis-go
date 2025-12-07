@@ -12,8 +12,8 @@ type Entry struct {
 }
 
 type Stream struct {
-	// entries holds all entries in the stream in chronological order
-	entries []*Entry
+	// tree holds all entries in the stream sorted by ID
+	tree *RadixTree
 }
 
 type Store struct {

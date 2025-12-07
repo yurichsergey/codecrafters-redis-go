@@ -76,7 +76,7 @@ func TestXAdd_AppendsToExistingStream(t *testing.T) {
 
 	// Verify stream has 2 entries
 	store.mutex.Lock()
-	entriesCount := len(store.storage["mystream"].entries)
+	entriesCount := store.storage["mystream"].tree.Len()
 	store.mutex.Unlock()
 
 	if entriesCount != 2 {
@@ -116,7 +116,7 @@ func TestXAdd_StoresFieldsCorrectly(t *testing.T) {
 
 	// Verify fields are stored correctly
 	store.mutex.Lock()
-	entry := store.storage["mystream"].entries[0]
+	entry := store.storage["mystream"].tree.First()
 	store.mutex.Unlock()
 
 	if entry.ID != "1-0" {

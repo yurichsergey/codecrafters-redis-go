@@ -39,15 +39,16 @@ func (s *Store) XAdd(args []string) string {
 	stream, exists := s.storage[key]
 	if !exists {
 		stream = &Stream{
-			entries: make([]*Entry, 0),
+			tree: NewRadixTree(),
 		}
 		s.storage[key] = stream
 	}
 
 	// Get the last entry ID
+	// Get the last entry ID
 	lastID := ""
-	if len(stream.entries) > 0 {
-		lastID = stream.entries[len(stream.entries)-1].ID
+	if lastEntry := stream.tree.Last(); lastEntry != nil {
+		lastID = lastEntry.ID
 	}
 
 	// Handle auto-generated sequence number logic: <time>-*
@@ -76,7 +77,12 @@ func (s *Store) XAdd(args []string) string {
 	}
 
 	// Append entry to the stream
-	stream.entries = append(stream.entries, entry)
+	// Append entry to the stream
+	keyStr, err := IDToKey(entryID)
+	if err != nil {
+		return resp.MakeError(err.Error())
+	}
+	stream.tree.Insert(keyStr, entry)
 
 	// Return the entry ID as a bulk string
 	return resp.MakeBulkString(entryID)
