@@ -41,7 +41,7 @@ func (s *Store) LRange(row []string) string {
 	}
 
 	// Calculate the length of the list
-	listLength := len(list)
+	listLength := list.Len()
 
 	// Handle negative indexes for start
 	if start < 0 {
@@ -77,7 +77,27 @@ func (s *Store) LRange(row []string) string {
 	}
 
 	// Extract the sublist
-	subList := list[start : stop+1]
+	// Optimize: if start > listLength/2, maybe better to start from Back()?
+	// But for now, simple implementation from Front()
+
+	count := stop - start + 1
+	subList := make([]string, 0, count)
+
+	e := list.Front()
+	// Skip 'start' elements
+	for i := 0; i < start; i++ {
+		if e != nil {
+			e = e.Next()
+		}
+	}
+
+	// Read 'count' elements
+	for i := 0; i < count; i++ {
+		if e != nil {
+			subList = append(subList, e.Value.(string))
+			e = e.Next()
+		}
+	}
 
 	// Construct the RESP array response
 	return resp.MakeArray(subList)

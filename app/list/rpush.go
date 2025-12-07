@@ -1,6 +1,8 @@
 package list
 
 import (
+	"container/list"
+
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
@@ -18,20 +20,33 @@ func (s *Store) RPush(row []string) string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.storage[key] = append(s.storage[key], elements...)
+	// Initialize list if it doesn't exist
+	if _, exists := s.storage[key]; !exists {
+		s.storage[key] = list.New()
+	}
+
+	l := s.storage[key]
+	for _, element := range elements {
+		l.PushBack(element)
+	}
 
 	// Calculate the new length of the list
-	newLength := len(s.storage[key])
+	newLength := l.Len()
 
 	if clients, exists := s.blockingClients[key]; exists {
 		// Loop while we have both waiting clients and elements in the list
-		for len(clients) > 0 && len(s.storage[key]) > 0 {
+		for len(clients) > 0 && l.Len() > 0 {
 			// Wake up the first (longest waiting) blocking client
 			client := clients[0]
-			client.Waiting <- BlockingResult{Key: key, Value: s.storage[key][0]}
 
-			// Remove the first element and the first client
-			s.storage[key] = s.storage[key][1:]
+			// Get and remove the first element
+			front := l.Front()
+			val := front.Value.(string)
+			l.Remove(front)
+
+			client.Waiting <- BlockingResult{Key: key, Value: val}
+
+			// Remove the first client
 			clients = clients[1:]
 		}
 
@@ -42,6 +57,11 @@ func (s *Store) RPush(row []string) string {
 		if len(s.blockingClients[key]) == 0 {
 			delete(s.blockingClients, key)
 		}
+	}
+
+	// Clean up empty list if all elements were consumed by blocking clients
+	if l.Len() == 0 {
+		delete(s.storage, key)
 	}
 
 	return resp.MakeInteger(newLength)

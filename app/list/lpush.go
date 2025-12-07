@@ -1,6 +1,8 @@
 package list
 
 import (
+	"container/list"
+
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
@@ -18,11 +20,24 @@ func (s *Store) LPush(row []string) string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	// Prepend elements in reverse order to maintain the correct list order
-	for i, j := 0, len(elements)-1; i < j; i, j = i+1, j-1 {
-		elements[i], elements[j] = elements[j], elements[i]
+	// Initialize list if it doesn't exist
+	if _, exists := s.storage[key]; !exists {
+		s.storage[key] = list.New()
 	}
-	s.storage[key] = append(elements, s.storage[key]...)
 
-	return resp.MakeInteger(len(s.storage[key]))
+	l := s.storage[key]
+	// Prepend elements. Redis LPUSH appends elements to the head.
+	// LPUSH mylist A B C -> C is head, B second, A third.
+	// So we push A, then B, then C to Front.
+	// Wait, code says: elements are inserted one after the other to the head.
+	// If I push A (Front: A), then B (Front: B, A), then C (Front: C, B, A).
+	// So yes, iterating normally and PushFront works.
+	for _, element := range elements {
+		l.PushFront(element)
+	}
+
+	// Original LPush did NOT handle blocking clients. Assuming this is intended for now.
+	// If we needed to handle them, we would do it here.
+
+	return resp.MakeInteger(l.Len())
 }

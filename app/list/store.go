@@ -1,6 +1,7 @@
 package list
 
 import (
+	"container/list"
 	"sync"
 )
 
@@ -18,7 +19,7 @@ type BlockingClient struct {
 
 type Store struct {
 	// storage holds the key-value pairs for list commands
-	storage map[string][]string
+	storage map[string]*list.List
 	// blockingClients holds the list of clients waiting for elements on specific keys
 	blockingClients map[string][]*BlockingClient
 	// mutex protects access to the storage and blockingClients map
@@ -28,7 +29,7 @@ type Store struct {
 // NewStore creates a new Store instance with initialized storage and blocking clients.
 func NewStore() *Store {
 	return &Store{
-		storage:         make(map[string][]string),
+		storage:         make(map[string]*list.List),
 		blockingClients: make(map[string][]*BlockingClient),
 	}
 }

@@ -25,5 +25,5 @@ func (s *Store) LLen(row []string) string {
 	}
 
 	// Return the length of the list as a RESP integer
-	return resp.MakeInteger(len(list))
+	return resp.MakeInteger(list.Len())
 }

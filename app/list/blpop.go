@@ -29,14 +29,15 @@ func (s *Store) BLPop(row []string) string {
 	s.mutex.Lock()
 	// Check each list for an element
 	for _, key := range keys {
-		list, exists := s.storage[key]
-		if exists && len(list) > 0 {
+		l, exists := s.storage[key]
+		if exists && l.Len() > 0 {
 			// Pop the first element
-			element := list[0]
-			s.storage[key] = list[1:]
+			front := l.Front()
+			element := front.Value.(string)
+			l.Remove(front)
 
 			// Clean up empty list
-			if len(s.storage[key]) == 0 {
+			if l.Len() == 0 {
 				delete(s.storage, key)
 			}
 

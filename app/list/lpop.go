@@ -31,36 +31,42 @@ func (s *Store) LPop(row []string) string {
 	defer s.mutex.Unlock()
 
 	// Check if list exists
-	list, exists := s.storage[key]
-	if !exists || len(list) == 0 {
+	l, exists := s.storage[key]
+	if !exists || l.Len() == 0 {
 		return resp.MakeNullBulkString()
 	}
 
 	// Determine how many elements to actually remove
 	numToRemove := count
-	if numToRemove > len(list) {
-		numToRemove = len(list)
+	if numToRemove > l.Len() {
+		numToRemove = l.Len()
 	}
 
 	// If count is 1 (no count argument provided), return single bulk string
 	if len(row) == 2 {
-		removed := list[0]
-		s.storage[key] = list[1:]
+		front := l.Front()
+		val := front.Value.(string)
+		l.Remove(front)
 
 		// Clean up empty list
-		if len(s.storage[key]) == 0 {
+		if l.Len() == 0 {
 			delete(s.storage, key)
 		}
 
-		return resp.MakeBulkString(removed)
+		return resp.MakeBulkString(val)
 	}
 
 	// Remove elements from the front
-	removed := list[:numToRemove]
-	s.storage[key] = list[numToRemove:]
+	removed := make([]string, 0, numToRemove)
+	for i := 0; i < numToRemove; i++ {
+		front := l.Front()
+		val := front.Value.(string)
+		removed = append(removed, val)
+		l.Remove(front)
+	}
 
 	// Clean up empty list
-	if len(s.storage[key]) == 0 {
+	if l.Len() == 0 {
 		delete(s.storage, key)
 	}
 
