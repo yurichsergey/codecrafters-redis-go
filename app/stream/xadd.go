@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
@@ -51,8 +52,16 @@ func (s *Store) XAdd(args []string) string {
 		lastID = lastEntry.ID
 	}
 
-	// Handle auto-generated sequence number logic: <time>-*
-	if strings.HasSuffix(entryID, "-*") {
+	// Handle auto-generated ID: *
+	if entryID == "*" {
+		msTime := time.Now().UnixMilli()
+		seqNum, err := GenerateSequence(msTime, lastID)
+		if err != nil {
+			return resp.MakeError(err.Error())
+		}
+		entryID = fmt.Sprintf("%d-%d", msTime, seqNum)
+	} else if strings.HasSuffix(entryID, "-*") {
+		// Handle auto-generated sequence number logic: <time>-*
 		timePart := strings.TrimSuffix(entryID, "-*")
 		msTime, err := strconv.ParseInt(timePart, 10, 64)
 		if err != nil {
