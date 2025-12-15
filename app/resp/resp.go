@@ -49,3 +49,13 @@ func MakeArray(items []string) string {
 	}
 	return sb.String()
 }
+
+// MakeRESPArray creates a RESP array where items are already valid RESP strings.
+func MakeRESPArray(items []string) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("*%d\r\n", len(items)))
+	for _, item := range items {
+		sb.WriteString(item)
+	}
+	return sb.String()
+}

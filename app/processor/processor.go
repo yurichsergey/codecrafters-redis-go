@@ -67,6 +67,8 @@ func (p *Processor) ProcessCommand(row []string) string {
 		response = p.ListStore.BLPop(row)
 	case "XADD":
 		response = p.StreamStore.XAdd(row)
+	case "XRANGE":
+		response = p.StreamStore.XRange(row)
 	case "TYPE":
 		response = p.TypeStore.Type(row)
 	default:

@@ -179,3 +179,51 @@ func (t *RadixTree) First() *Entry {
 
 	return node.value
 }
+
+// Range returns all entries with keys in the range [start, end].
+// start and end must be 16-byte strings.
+func (t *RadixTree) Range(start, end string) []*Entry {
+	var results []*Entry
+	t.walk(t.root, "", start, end, &results)
+	return results
+}
+
+func (t *RadixTree) walk(node *Node, path string, start, end string, results *[]*Entry) {
+	currentPath := path + node.prefix
+
+	// Check if current node has a value and is within range
+	if node.value != nil {
+		if currentPath >= start && currentPath <= end {
+			*results = append(*results, node.value)
+		}
+	}
+
+	// Optimization:
+	// Since edges are sorted, children are sorted lexicographically.
+	// We can potentially skip some children if we know they are out of range.
+	// However, because nodes can condense prefixes, doing a precise check is tricky without full reconstruction.
+	// A simple but effective optimization:
+	// If currentPath is already > end, we might stop if we know we can't go back?
+	// But currentPath is just a prefix. "prefix" > "end" is possible if prefix is "longer" or just lexicographically larger.
+	// If currentPath is a prefix of 'end', we must continue.
+	// If currentPath > end (lexicographically) and currentPath is NOT a prefix of end?
+	//  e.g. currentPath="b", end="a". "b" > "a". All children of "b" will start with "b...", so they are > "a".
+	// So if currentPath > end, we can prune THIS subtree.
+	// Note: Strings in Go are compared byte by byte.
+
+	if len(currentPath) > 0 {
+		// If currentPath > end, then all children (which extend currentPath) are also > end.
+		// Be careful: "10" < "2". But keys are fixed length binary strings (16 bytes),
+		// so comparison is consistent.
+		if currentPath > end {
+			return
+		}
+	}
+
+	// Also if we can determine that a child will be > end or < start?
+	// Let's stick to the current path check for pruning > end.
+
+	for _, child := range node.children {
+		t.walk(child, currentPath, start, end, results)
+	}
+}

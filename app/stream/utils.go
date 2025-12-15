@@ -3,6 +3,7 @@ package stream
 import (
 	"encoding/binary"
 	"errors"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -105,4 +106,50 @@ func GenerateSequence(msTime int64, lastID string) (int64, error) {
 		return 1, nil
 	}
 	return 0, nil
+}
+
+// ParseRangeID parses the start/end ID for XRANGE.
+// If sequence number is missing:
+// - isStart=true  => sequence = 0
+// - isStart=false => sequence = MaxInt64
+//
+// Special IDs:
+// "-" => 0-0
+// "+" => MaxInt64-MaxInt64
+func ParseRangeID(id string, isStart bool) (string, error) {
+	if id == "-" {
+		return IDToKey("0-0")
+	}
+	if id == "+" {
+		// Minimum time 0, Max time?
+		// Max Uint64 for time and seq.
+		// Since we use int64 parsing for milliseconds, let's use MaxInt64.
+		buf := make([]byte, 16)
+		binary.BigEndian.PutUint64(buf[0:8], uint64(math.MaxInt64))
+		binary.BigEndian.PutUint64(buf[8:16], uint64(math.MaxInt64))
+		return string(buf), nil
+	}
+
+	parts := strings.Split(id, "-")
+	if len(parts) == 2 {
+		return IDToKey(id)
+	}
+
+	msTime, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return "", errors.New("invalid millisecondsTime")
+	}
+
+	var seqNum int64
+	if isStart {
+		seqNum = 0
+	} else {
+		seqNum = math.MaxInt64
+	}
+
+	buf := make([]byte, 16)
+	binary.BigEndian.PutUint64(buf[0:8], uint64(msTime))
+	binary.BigEndian.PutUint64(buf[8:16], uint64(seqNum))
+
+	return string(buf), nil
 }
