@@ -78,12 +78,16 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 	t.Run("BLPOP with multiple blocking clients", func(t *testing.T) {
 		processor := processor.NewProcessor()
 
+		var wg sync.WaitGroup
+		wg.Add(2)
+
 		// Result channels for multiple blocking clients
 		results := make(chan string, 2)
 
 		// Start two blocking clients
 		for i := 0; i < 2; i++ {
 			go func() {
+				defer wg.Done()
 				result := processor.ProcessCommand([]string{"BLPOP", "multi_list", "0"})
 				results <- result
 			}()
@@ -115,17 +119,10 @@ func TestBLPOPBlockingBehavior(t *testing.T) {
 		}
 
 		// Unblock the second client so the test can finish
-		go func() {
-			processor.ProcessCommand([]string{"RPUSH", "multi_list", "cleanup"})
-		}()
+		processor.ProcessCommand([]string{"RPUSH", "multi_list", "cleanup"})
 
-		// Wait for the second client to finish
-		select {
-		case <-results:
-			// Success
-		case <-time.After(1 * time.Second):
-			t.Fatal("Second client did not unblock after cleanup")
-		}
+		// Wait for both clients to finish
+		wg.Wait()
 	})
 
 	t.Run("BLPOP wakes up multiple clients with multiple elements", func(t *testing.T) {
