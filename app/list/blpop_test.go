@@ -228,16 +228,21 @@ func TestBLPOPCaseInsensitivity(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			processor := processor.NewProcessor()
 
+			var wg sync.WaitGroup
+			wg.Add(2)
+
 			// Result channel
 			resultChan := make(chan string, 1)
 
 			// Blocking call
 			go func() {
+				defer wg.Done()
 				resultChan <- processor.ProcessCommand(tt.input)
 			}()
 
 			// Unblock
 			go func() {
+				defer wg.Done()
 				time.Sleep(10 * time.Millisecond)
 				processor.ProcessCommand([]string{"RPUSH", "case_list", "element"})
 			}()
@@ -251,6 +256,8 @@ func TestBLPOPCaseInsensitivity(t *testing.T) {
 			case <-time.After(1 * time.Second):
 				t.Fatal("BLPOP did not unblock")
 			}
+
+			wg.Wait()
 		})
 	}
 }
